@@ -323,6 +323,8 @@ function main() {
     });
 
     
+
+    
     // ------ Draw the objects --------
 
     twgl.drawObjectList(gl, objectsToDraw);
