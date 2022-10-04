@@ -55,7 +55,7 @@ var config = {
     objectsToDraw = [];
     objects = [];
     nodeInfosByName = {};
-    scene = makeNode(mioca);
+    scene = makeNodeCube(mioca);
 
     console.log(mioca);
     return;
@@ -70,7 +70,7 @@ var config = {
     objectsToDraw = [];
     objects = [];
     nodeInfosByName = {};
-    scene = makeNode(mioca);
+    scene = makeNodeCube(mioca);
 
     console.log(mioca);
     return;
@@ -174,7 +174,7 @@ var cubeVAO;
 
 // VARIAVEIS PARA USO NO MAIN ----------------------------------------------------------------------------------
 
-function makeNode(nodeDescription) {
+function makeNodeCube(nodeDescription) {
   var trs = new TRS();
   var node = new Node(trs);
   nodeInfosByName[nodeDescription.name] = {
@@ -227,12 +227,6 @@ function main() {
 
 
   // setup GLSL program
-  const options = {
-    attribLocations: {
-      a_position: 0,
-      a_color: 1,
-    },
-  };
 
   programInfo = twgl.createProgramInfo(gl, [vs, fs]);
   
@@ -269,7 +263,7 @@ function main() {
   //   nodeInfosByName["hilt"].trs.translation = [-1, 0, 0];
   //   nodeInfosByName["blade"].trs.scale = [0.5, 3.5, 0.1];
   //   nodeInfosByName["blade"].trs.translation = [-1, 1.8, 0];
-  scene = makeNode(mioca);
+  scene = makeNodeCube(mioca);
   requestAnimationFrame(drawScene);
   
   //console.log(objects);
@@ -322,7 +316,7 @@ function main() {
       );
     });
 
-    
+
 
     
     // ------ Draw the objects --------
