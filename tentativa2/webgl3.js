@@ -45,7 +45,7 @@ var config = {
   rotate: degToRad(20),
   x: 0,
   y: 0,
-  addFrente: function () {
+  addFrenteCube: function () {
     countF++;
 
     mioca.children.push({
@@ -57,10 +57,10 @@ var config = {
     nodeInfosByName = {};
     scene = makeNodeCube(mioca);
 
-    console.log(mioca);
+    
     return;
   },
-  addCima: function () {
+  addCimaCube: function () {
     countC++;
 
     mioca.children.push({
@@ -72,11 +72,23 @@ var config = {
     nodeInfosByName = {};
     scene = makeNodeCube(mioca);
 
-    console.log(mioca);
+    
     return;
   },
-  newvertex: function(){
-    console.log("ah");
+  addFrenteCone: function(){
+    countF++;
+
+    mioca.children.push({
+      name: `mioca${countF}`,
+      translation: [countF - 1, 0, 0],
+    });
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNodeCone(mioca);
+
+    
+    return;
   }
 };
 
@@ -85,9 +97,9 @@ const loadGUI = (gl) => {
   gui.add(config, "rotate", 0, 1000, 1); //Minimo, maximo e "velocidade"
   gui.add(config, "x", 1, 10, 1);
   gui.add(config, "y", 1, 10, 0.1);
-  gui.add(config, "addFrente");
-  gui.add(config, "addCima");
-  gui.add(config, "newvertex");
+  gui.add(config, "addFrenteCube");
+  gui.add(config, "addCimaCube");
+  gui.add(config, "addFrenteCone");
 
   //gui.add(config, "teste", 0, 100);
 };
@@ -171,6 +183,8 @@ var countC = 0;
 var programInfo;
 var cubeBufferInfo;
 var cubeVAO;
+var coneBufferInfo;
+var coneVAO;
 
 // VARIAVEIS PARA USO NO MAIN ----------------------------------------------------------------------------------
 
@@ -204,8 +218,42 @@ function makeNodeCube(nodeDescription) {
   return node;
 }
 
+function makeNodeCone(nodeDescription) {
+  var trs = new TRS();
+  var node = new Node(trs);
+  nodeInfosByName[nodeDescription.name] = {
+    trs: trs,
+    node: node,
+  };
+  trs.translation = nodeDescription.translation || trs.translation;
+  //trs.scale = trs.scale;
+  if (nodeDescription.draw !== false) {
+    node.drawInfo = {
+      uniforms: {
+        u_colorOffset: [0.5, 0.5, 1, 1],
+        u_colorMult: [0, 0.4, 0.4, 1],
+      },
+      programInfo: programInfo,
+      // Alterar buffer info para a forma desejada
+      bufferInfo: coneBufferInfo,
+      // Alterar vertexArray para a informação desejada
+      vertexArray: coneVAO,
+    };
+    objectsToDraw.push(node.drawInfo);
+    objects.push(node);
+  }
+  makeNodesCone(nodeDescription.children).forEach(function (child) {
+    child.setParent(node);
+  });
+  return node;
+}
+
 function makeNodes(nodeDescriptions) {
-  return nodeDescriptions ? nodeDescriptions.map(makeNode) : [];
+  return nodeDescriptions ? nodeDescriptions.map(makeNodeCube) : [];
+}
+
+function makeNodesCone(nodeDescriptions) {
+  return nodeDescriptions ? nodeDescriptions.map(makeNodeCube) : [];
 }
 
 function main() {
@@ -224,6 +272,7 @@ function main() {
   twgl.setAttributePrefix("a_");
 
   cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
+  coneBufferInfo   = flattenedPrimitives.createTruncatedConeBufferInfo(gl, 10, 0, 20, 12, 1, true, false);
 
 
   // setup GLSL program
@@ -232,6 +281,7 @@ function main() {
   
 
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
+  coneVAO = twgl.createVAOFromBufferInfo(gl, programInfo, coneBufferInfo);
 
   function degToRad(d) {
     return (d * Math.PI) / 180;
@@ -264,6 +314,7 @@ function main() {
   //   nodeInfosByName["blade"].trs.scale = [0.5, 3.5, 0.1];
   //   nodeInfosByName["blade"].trs.translation = [-1, 1.8, 0];
   scene = makeNodeCube(mioca);
+
   requestAnimationFrame(drawScene);
   
   //console.log(objects);
@@ -316,9 +367,7 @@ function main() {
       );
     });
 
-
-
-    
+  
     // ------ Draw the objects --------
 
     twgl.drawObjectList(gl, objectsToDraw);
@@ -327,5 +376,7 @@ function main() {
   }
   
 }
+
+
 
 main();
