@@ -158,7 +158,7 @@ function makeNode(nodeDescription) {
   if (nodeDescription.draw !== false) {
     node.drawInfo = {
       uniforms: {
-        u_colorOffset: [0.2, 0.2, 0.7, 0],
+        u_colorOffset: [0, 1, 1, 1],
         u_colorMult: [0.4, 0.1, 0.4, 1],
       },
       programInfo: programInfo,
@@ -290,7 +290,7 @@ function main() {
     // ------ Draw the objects --------
 
     twgl.drawObjectList(gl, objectsToDraw);
-
+    gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
     requestAnimationFrame(drawScene);
   }
 }
