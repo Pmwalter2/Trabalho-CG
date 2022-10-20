@@ -25,37 +25,6 @@ void main() {
 }
 `;
 
-var vs_wireframe = `
-attribute vec4 a_position;
-attribute vec3 a_barycentric;
-uniform mat4 u_matrix;
-varying vec3 vbc;
-
-void main() {
-  vbc = a_barycentric;
-  gl_Position = u_matrix * a_position;
-}`;
-
-var fs_wireframe = `
-precision mediump float;
-varying vec3 vbc;
-
-void main() {
-  if(vbc.x < 0.03 || vbc.y < 0.03 || vbc.z < 0.03) {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-  } 
-  else {
-    gl_FragColor = vec4(0.5, 0.9, 0.8, 0.0);
-  }
-}`;
-
-const calculateBarycentric = (length) => {
-  const n = length / 6;
-  const barycentric = [];
-  for (let i = 0; i < n; i++) barycentric.push(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  return new Float32Array(barycentric);
-};
-
 const degToRad = (d) => (d * Math.PI) / 180;
 
 const radToDeg = (r) => (r * 180) / Math.PI;
@@ -80,11 +49,8 @@ var config = {
     scene = makeNode(objeto);
   },
   triangulo: 0,
-  TrocarParaWireFrame: function () {},
+  criarVertice: function () {},
   time: 0.0,
-
-  textura: function(){},
-  objetos:function(){}
 };
 
 const loadGUI = () => {
@@ -96,12 +62,8 @@ const loadGUI = () => {
   gui.add(config, "addCaixa");
   gui.add(config, "camera_x", 0, 20, 0.5);
   gui.add(config, "triangulo", 0, 20, 0.5);
-  gui.add(config, "TrocarParaWireFrame");
+  gui.add(config, "criarVertice");
   gui.add(config, "time", 0, 100);
-  var textura = gui.addFolder("Textura");
-  textura.add(config,'textura').name('Mudar textura');
-  var objetos = gui.addFolder("Editor de cena");
-  objetos.add(config, 'objetos').name('Adicionar objetos');
 };
 
 var TRS = function () {
@@ -169,7 +131,6 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
-var VAO;
 var cubeVAO;
 var cubeBufferInfo;
 var objectsToDraw = [];
@@ -180,7 +141,7 @@ var objeto = {};
 var countF = 0;
 var countC = 0;
 var programInfo;
-var wireframe = true
+
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
@@ -195,25 +156,14 @@ function makeNode(nodeDescription) {
   };
   trs.translation = nodeDescription.translation || trs.translation;
   if (nodeDescription.draw !== false) {
-    if (wireframe){
-      node.drawInfo = {
-        uniforms: {
-          u_matrix: [0, 0, 0, 1],
-        },
-        programInfo: programInfo,
-        bufferInfo: cubeBufferInfo,
-        vertexArray: cubeVAO,
-      };
-    } else{
-      node.drawInfo = {
-        uniforms: {
-          u_colorOffset: [0, 1, 1, 1],
-          u_colorMult: [0.4, 0.1, 0.4, 1],
-        },
-        programInfo: programInfo,
-        bufferInfo: cubeBufferInfo,
-        vertexArray: cubeVAO,
-      }
+    node.drawInfo = {
+      uniforms: {
+        u_colorOffset: [0, 1, 1, 1],
+        u_colorMult: [0.4, 0.1, 0.4, 1],
+      },
+      programInfo: programInfo,
+      bufferInfo: cubeBufferInfo,
+      vertexArray: cubeVAO,
     };
     objectsToDraw.push(node.drawInfo);
     objects.push(node);
@@ -243,81 +193,34 @@ function main() {
   twgl.setAttributePrefix("a_");
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
 
-  
-
   var arrays_cube = {
     // vertex positions for a cube
     position: new Float32Array([
       1, 1, -1, //0
-       
-      1, 1, 1,//1
-
-      1, -1, 1,//2
-
-      1, 1, -1,//0
-
-      1, -1, 1,//2
-
-      1, -1, -1,//3 //Direito
-
-      -1, 1, 1,//4
-
+      1, 1, 1, //1
+      1, -1, 1, //2
+      1, -1, -1, //3
+      -1, 1, 1, //4
       -1, 1, -1, //5
-
-      -1, -1, -1,//6 
-
-      -1, 1, 1,//4 
-
-      -1, -1, -1,//6 
-
-      -1, -1, 1, //7 // Esquerdo
-
-      -1, 1, 1,//8
-
-      1, 1, 1, //9
-
-      1, 1, -1, //10
-
-      -1, 1, 1,//8
-
-      1, 1, -1, //10
-
-      -1, 1, -1, //11 //Cima
+      -1, -1, -1,//6
+      -1, -1, 1, //7
       
+      -1, 1, 1, //8
+      1, 1, 1, //9
+      1, 1, -1, //10
+      -1, 1, -1, //11
+
       -1, -1, -1,//12
-
-      1, -1, -1,//13
-
-      1, -1, 1,//14
-
-      -1, -1, -1,//12
-
-      1, -1, 1,//14
-
+       1, -1, -1,//13
+      1, -1, 1, //14
       -1, -1, 1,//15
-
-      1, 1, 1, //16
-
-      -1, 1, 1, //17
-
-      -1, -1, 1, //18
-
-      1, 1, 1, //16
-
-      -1, -1, 1, //18
-
+       1, 1, 1,//16
+      -1, 1, 1,//17
+      -1, -1, 1,//18
       1, -1, 1, //19
-
-      -1, 1, -1,//20
-
-      1, 1, -1,//21
-
+      -1, 1, -1, //20
+      1, 1, -1, //21
       1, -1, -1,//22
-
-      -1, 1, -1,//20
-
-      1, -1, -1,//22
-       
       -1, -1, -1,//23
     ]),
     // vertex normals for a cube
@@ -327,18 +230,15 @@ function main() {
       -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
       0, 0, -1,
     ]),
-   
-    
-    barycentric: [],
-  };
-  console.log(arrays_cube.position.length)
-  arrays_cube.barycentric = calculateBarycentric(
-    arrays_cube.position.length
-  );
+    indices: new Uint16Array([
+      0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12,
+      14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
+    ]),
+  }; 
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
 
   // setup GLSL program
-  programInfo = twgl.createProgramInfo(gl, [vs_wireframe, fs_wireframe]);
+  programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
 
@@ -374,7 +274,7 @@ function main() {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    //gl.enable(gl.CULL_FACE);
+    gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
     // Compute the projection matrix
@@ -412,7 +312,7 @@ function main() {
     // ------ Draw the objects --------
 
     twgl.drawObjectList(gl, objectsToDraw);
-    
+    gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
     requestAnimationFrame(drawScene);
   }
 }
