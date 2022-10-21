@@ -56,6 +56,14 @@ const calculateBarycentric = (length) => {
   return new Float32Array(barycentric);
 };
 
+const calculaMeioDoTriangulo = (arr) => {
+  const x = (arr[0] + arr[3] + arr[6]) / 3;
+  const y = (arr[1] + arr[4] + arr[7]) / 3;
+  const z = (arr[2] + arr[5] + arr[8]) / 3;
+
+  return [x, y, z];
+};
+
 const degToRad = (d) => (d * Math.PI) / 180;
 
 const radToDeg = (r) => (r * 180) / Math.PI;
@@ -80,7 +88,64 @@ var config = {
     scene = makeNode(objeto);
   },
   triangulo: 0,
-  TrocarParaWireFrame: function () {},
+  AdicionarVertice: function () {
+    var n = config.triangulo * 9;
+    var inicio = arrays_cube.position.slice(0, n);
+    var temp = arrays_cube.position.slice(n, n + 9);
+    var resto = arrays_cube.position.slice(
+      n + 9,
+      arrays_cube.position.length
+    );
+    var b = calculaMeioDoTriangulo(temp);
+    var novotri = [
+      temp[0],
+      temp[1],
+      temp[2],
+      b[0],
+      b[1],
+      b[2],
+
+      temp[3],
+      temp[4],
+      temp[5],
+
+      temp[3],
+      temp[4],
+      temp[5],
+      b[0],
+      b[1],
+      b[2],
+      temp[6],
+      temp[7],
+      temp[8],
+
+      temp[6],
+      temp[7],
+      temp[8],
+      b[0],
+      b[1],
+      b[2],
+      temp[0],
+      temp[1],
+      temp[2],
+    ];
+    var final = new Float32Array([...inicio, ...novotri, ...resto]);
+
+    arrays_cube.position = new Float32Array([...final]);
+    arrays_cube.barycentric = calculateBarycentric(
+      arrays_cube.position.length
+    );
+    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+    qtd_triangulos = arrays_cube.position.length / 9;
+    console.log(qtd_triangulos);
+    gui.updateDisplay();
+    //drawScene();
+  },
   time: 0.0,
 
   textura: function(){},
@@ -96,7 +161,7 @@ const loadGUI = () => {
   gui.add(config, "addCaixa");
   gui.add(config, "camera_x", 0, 20, 0.5);
   gui.add(config, "triangulo", 0, 20, 0.5);
-  gui.add(config, "TrocarParaWireFrame");
+  gui.add(config, "AdicionarVertice");
   gui.add(config, "time", 0, 100);
   var textura = gui.addFolder("Textura");
   textura.add(config,'textura').name('Mudar textura');
@@ -170,6 +235,7 @@ Node.prototype.updateWorldMatrix = function (matrix) {
 };
 
 var VAO;
+var gl;
 var cubeVAO;
 var cubeBufferInfo;
 var objectsToDraw = [];
@@ -181,6 +247,7 @@ var countF = 0;
 var countC = 0;
 var programInfo;
 var wireframe = true
+var arrays_cube;
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
@@ -231,7 +298,7 @@ function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
   var canvas = document.querySelector("#canvas");
-  var gl = canvas.getContext("webgl2");
+  gl = canvas.getContext("webgl2");
   if (!gl) {
     return;
   }
@@ -245,7 +312,7 @@ function main() {
 
   
 
-  var arrays_cube = {
+  arrays_cube = {
     // vertex positions for a cube
     position: new Float32Array([
       1, 1, -1, //0
@@ -358,6 +425,30 @@ function main() {
     translation: [0, 0, 0],
     children: [],
   };
+// -------------------------- TEXTURA --------------------------
+  // Create a texture.
+  var texture = gl.createTexture();
+
+  // use texture unit 0
+  gl.activeTexture(gl.TEXTURE0 + 0);
+
+  // bind to the TEXTURE_2D bind point of texture unit 0
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Fill the texture with a 1x1 blue pixel.
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+                new Uint8Array([0, 0, 255, 255]));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+   // Asynchronously load an image
+   var image = new Image();
+   image.src = "dado.jpg";
+   image.addEventListener('load', function() {
+     // Now that the image has loaded make copy it to the texture.
+     gl.bindTexture(gl.TEXTURE_2D, texture);
+     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+     gl.generateMipmap(gl.TEXTURE_2D);
+   });
 
   scene = makeNode(objeto);
 
