@@ -3,25 +3,35 @@
 var vs = `#version 300 es
 in vec4 a_position;
 in vec4 a_color;
+in vec2 a_texcoord;
+in uint a_faceId;
 uniform mat4 u_matrix;
-out vec4 v_color;
+out vec2 v_texcoord;
+flat out uint v_faceId;
+
 void main() {
-  // Multiply the position by the matrix.
+  
+  v_faceId = a_faceId;
+  v_texcoord = a_texcoord;
   gl_Position = u_matrix * a_position;
-  // Pass the color to the fragment shader.
-  v_color = a_color;
 }
 `;
 
 var fs = `#version 300 es
 precision highp float;
 // Passed in from the vertex shader.
-in vec4 v_color;
-uniform vec4 u_colorMult;
-uniform vec4 u_colorOffset;
+
+in vec2 v_texcoord;
+flat in uint v_faceId;
+// The texture.
+
+
+uniform mediump sampler2DArray u_diffuse;
+uniform uint u_faceIndex[6];
 out vec4 outColor;
 void main() {
-   outColor = v_color * u_colorMult + u_colorOffset;
+   
+  outColor = texture(u_diffuse, vec3(v_texcoord, u_faceIndex[v_faceId]));
 }
 `;
 
@@ -190,7 +200,7 @@ function main() {
 
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
-  twgl.setAttributePrefix("a_");
+  twgl.setDefaults({attribPrefix: "a_"});
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
 
   var arrays_cube = {
@@ -230,12 +240,26 @@ function main() {
       -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
       0, 0, -1,
     ]),
+    texcoord: [1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1],
+    faceId:   { numComponents: 1, data: new Uint8Array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6]), },
     indices: new Uint16Array([
       0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12,
       14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
     ]),
   }; 
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+
+  var imagem =["mamaco.jpg"]
+
+  const tex = twgl.createTexture(gl, {
+    target: gl.TEXTURE_2D_ARRAY,
+    src: imagem,
+  });
+  
+  const uniforms = {
+    u_diffuse: tex,
+    u_faceIndex: [0, 1, 2, 3, 4, 5],
+  };
 
   // setup GLSL program
   programInfo = twgl.createProgramInfo(gl, [vs, fs]);
@@ -312,7 +336,11 @@ function main() {
     // ------ Draw the objects --------
 
     twgl.drawObjectList(gl, objectsToDraw);
-    gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
+    gl.useProgram(programInfo.program);
+    twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
+    twgl.setUniforms(programInfo, uniforms);
+    twgl.drawBufferInfo(gl, cubeBufferInfo);
+    //gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
     requestAnimationFrame(drawScene);
   }
 }

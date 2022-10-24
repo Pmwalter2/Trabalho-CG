@@ -3,25 +3,35 @@
 var vs = `#version 300 es
 in vec4 a_position;
 in vec4 a_color;
+in vec2 a_texcoord;
+in uint a_faceId;
 uniform mat4 u_matrix;
-out vec4 v_color;
+out vec2 v_texcoord;
+flat out uint v_faceId;
+
 void main() {
-  // Multiply the position by the matrix.
+  
+  v_faceId = a_faceId;
+  v_texcoord = a_texcoord;
   gl_Position = u_matrix * a_position;
-  // Pass the color to the fragment shader.
-  v_color = a_color;
 }
 `;
 
 var fs = `#version 300 es
 precision highp float;
 // Passed in from the vertex shader.
-in vec4 v_color;
-uniform vec4 u_colorMult;
-uniform vec4 u_colorOffset;
+
+in vec2 v_texcoord;
+flat in uint v_faceId;
+// The texture.
+
+
+uniform mediump sampler2DArray u_diffuse;
+uniform uint u_faceIndex[6];
 out vec4 outColor;
 void main() {
-   outColor = v_color * u_colorMult + u_colorOffset;
+   
+  outColor = texture(u_diffuse, vec3(v_texcoord, u_faceIndex[v_faceId]));
 }
 `;
 
@@ -165,8 +175,6 @@ const loadGUI = () => {
   gui.add(config, "time", 0, 100);
   var textura = gui.addFolder("Textura");
   textura.add(config,'textura').name('Mudar textura');
-  var objetos = gui.addFolder("Editor de cena");
-  objetos.add(config, 'objetos').name('Adicionar objetos');
 };
 
 var TRS = function () {
@@ -465,7 +473,7 @@ function main() {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    //gl.enable(gl.CULL_FACE);
+    gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
     // Compute the projection matrix
