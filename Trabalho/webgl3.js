@@ -100,11 +100,11 @@ var config = {
   triangulo: 0,
   AdicionarVertice: function () {
     var n = config.triangulo * 9;
-    var inicio = arrays_cube.position.slice(0, n);
-    var temp = arrays_cube.position.slice(n, n + 9);
-    var resto = arrays_cube.position.slice(
+    var inicio = arrays_cube_wireframe.position.slice(0, n);
+    var temp = arrays_cube_wireframe.position.slice(n, n + 9);
+    var resto = arrays_cube_wireframe.position.slice(
       n + 9,
-      arrays_cube.position.length
+      arrays_cube_wireframe.position.length
     );
     var b = calculaMeioDoTriangulo(temp);
     var novotri = [
@@ -141,24 +141,26 @@ var config = {
     ];
     var final = new Float32Array([...inicio, ...novotri, ...resto]);
 
-    arrays_cube.position = new Float32Array([...final]);
-    arrays_cube.barycentric = calculateBarycentric(
-      arrays_cube.position.length
+    arrays_cube_wireframe.position = new Float32Array([...final]);
+    arrays_cube_wireframe.barycentric = calculateBarycentric(
+      arrays_cube_wireframe.position.length
     );
-    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube_wireframe);
 
     objectsToDraw = [];
     objects = [];
     nodeInfosByName = {};
     scene = makeNode(objeto);
-    qtd_triangulos = arrays_cube.position.length / 9;
+    qtd_triangulos = arrays_cube_wireframe.position.length / 9;
     console.log(qtd_triangulos);
     gui.updateDisplay();
     //drawScene();
   },
   time: 0.0,
 
-  textura: function(){},
+  textura: function(){
+
+  },
   objetos:function(){}
 };
 
@@ -255,7 +257,51 @@ var countF = 0;
 var countC = 0;
 var programInfo;
 var wireframe = true
-var arrays_cube;
+var arrays_cube_wireframe;
+var arrays_cube_textura={
+  // vertex positions for a cube
+  position: new Float32Array([
+    1, 1, -1, //0
+    1, 1, 1, //1
+    1, -1, 1, //2
+    1, -1, -1, //3
+    -1, 1, 1, //4
+    -1, 1, -1, //5
+    -1, -1, -1,//6
+    -1, -1, 1, //7
+    
+    -1, 1, 1, //8
+    1, 1, 1, //9
+    1, 1, -1, //10
+    -1, 1, -1, //11
+
+    -1, -1, -1,//12
+     1, -1, -1,//13
+    1, -1, 1, //14
+    -1, -1, 1,//15
+     1, 1, 1,//16
+    -1, 1, 1,//17
+    -1, -1, 1,//18
+    1, -1, 1, //19
+    -1, 1, -1, //20
+    1, 1, -1, //21
+    1, -1, -1,//22
+    -1, -1, -1,//23
+  ]),
+  // vertex normals for a cube
+  normal: new Float32Array([
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+    -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+    0, 0, -1,
+  ]),
+  texcoord: [1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1],
+  faceId:   { numComponents: 1, data: new Uint8Array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6]), },
+  indices: new Uint16Array([
+    0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12,
+    14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
+  ]),
+}; 
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
@@ -320,7 +366,7 @@ function main() {
 
   
 
-  arrays_cube = {
+  arrays_cube_wireframe = {
     // vertex positions for a cube
     position: new Float32Array([
       1, 1, -1, //0
@@ -402,15 +448,13 @@ function main() {
       -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
       0, 0, -1,
     ]),
-   
-    
     barycentric: [],
   };
-  console.log(arrays_cube.position.length)
-  arrays_cube.barycentric = calculateBarycentric(
-    arrays_cube.position.length
+
+  arrays_cube_wireframe.barycentric = calculateBarycentric(
+    arrays_cube_wireframe.position.length
   );
-  cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+  cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube_wireframe);
 
   // setup GLSL program
   programInfo = twgl.createProgramInfo(gl, [vs_wireframe, fs_wireframe]);
@@ -433,30 +477,6 @@ function main() {
     translation: [0, 0, 0],
     children: [],
   };
-// -------------------------- TEXTURA --------------------------
-  // Create a texture.
-  var texture = gl.createTexture();
-
-  // use texture unit 0
-  gl.activeTexture(gl.TEXTURE0 + 0);
-
-  // bind to the TEXTURE_2D bind point of texture unit 0
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-
-  // Fill the texture with a 1x1 blue pixel.
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-                new Uint8Array([0, 0, 255, 255]));
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-
-   // Asynchronously load an image
-   var image = new Image();
-   image.src = "dado.jpg";
-   image.addEventListener('load', function() {
-     // Now that the image has loaded make copy it to the texture.
-     gl.bindTexture(gl.TEXTURE_2D, texture);
-     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-     gl.generateMipmap(gl.TEXTURE_2D);
-   });
 
   scene = makeNode(objeto);
 
@@ -473,7 +493,7 @@ function main() {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    gl.enable(gl.CULL_FACE);
+    //gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
     // Compute the projection matrix

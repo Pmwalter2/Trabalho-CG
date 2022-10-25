@@ -249,7 +249,7 @@ function main() {
   }; 
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
 
-  var imagem =["mamaco.jpg"]
+  var imagem =["noodles.jpg"]
 
   const tex = twgl.createTexture(gl, {
     target: gl.TEXTURE_2D_ARRAY,
