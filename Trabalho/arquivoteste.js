@@ -2,6 +2,7 @@
 
 var vs = `#version 300 es
 in vec4 a_position;
+in vec4 a_color;
 in vec2 a_texcoord;
 in uint a_faceId;
 uniform mat4 u_matrix;
@@ -34,6 +35,45 @@ void main() {
 }
 `;
 
+var vs_wireframe = `
+attribute vec4 a_position;
+attribute vec3 a_barycentric;
+uniform mat4 u_matrix;
+varying vec3 vbc;
+
+void main() {
+  vbc = a_barycentric;
+  gl_Position = u_matrix * a_position;
+}`;
+
+var fs_wireframe = `
+precision mediump float;
+varying vec3 vbc;
+
+void main() {
+  if(vbc.x < 0.03 || vbc.y < 0.03 || vbc.z < 0.03) {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+  } 
+  else {
+    gl_FragColor = vec4(0.5, 0.9, 0.8, 0.0);
+  }
+}`;
+
+const calculateBarycentric = (length) => {
+  const n = length / 6;
+  const barycentric = [];
+  for (let i = 0; i < n; i++) barycentric.push(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  return new Float32Array(barycentric);
+};
+
+const calculaMeioDoTriangulo = (arr) => {
+  const x = (arr[0] + arr[3] + arr[6]) / 3;
+  const y = (arr[1] + arr[4] + arr[7]) / 3;
+  const z = (arr[2] + arr[5] + arr[8]) / 3;
+
+  return [x, y, z];
+};
+
 const degToRad = (d) => (d * Math.PI) / 180;
 
 const radToDeg = (r) => (r * 180) / Math.PI;
@@ -58,8 +98,69 @@ var config = {
     scene = makeNode(objeto);
   },
   triangulo: 0,
-  criarVertice: function () {},
+  AdicionarVertice: function () {
+    var n = config.triangulo * 9;
+    var inicio = arrays_cube_wireframe.position.slice(0, n);
+    var temp = arrays_cube_wireframe.position.slice(n, n + 9);
+    var resto = arrays_cube_wireframe.position.slice(
+      n + 9,
+      arrays_cube_wireframe.position.length
+    );
+    var b = calculaMeioDoTriangulo(temp);
+    var novotri = [
+      temp[0],
+      temp[1],
+      temp[2],
+      b[0],
+      b[1],
+      b[2],
+
+      temp[3],
+      temp[4],
+      temp[5],
+
+      temp[3],
+      temp[4],
+      temp[5],
+      b[0],
+      b[1],
+      b[2],
+      temp[6],
+      temp[7],
+      temp[8],
+
+      temp[6],
+      temp[7],
+      temp[8],
+      b[0],
+      b[1],
+      b[2],
+      temp[0],
+      temp[1],
+      temp[2],
+    ];
+    var final = new Float32Array([...inicio, ...novotri, ...resto]);
+
+    arrays_cube_wireframe.position = new Float32Array([...final]);
+    arrays_cube_wireframe.barycentric = calculateBarycentric(
+      arrays_cube_wireframe.position.length
+    );
+    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube_wireframe);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+    //drawScene();
+  },
   time: 0.0,
+
+  textura: function(){
+    testaTextura = true;
+    objectsToDraw.pop();
+    scene = makeNode(objeto);
+  },
+  objetos:function(){}
 };
 
 const loadGUI = () => {
@@ -71,8 +172,10 @@ const loadGUI = () => {
   gui.add(config, "addCaixa");
   gui.add(config, "camera_x", 0, 20, 0.5);
   gui.add(config, "triangulo", 0, 20, 0.5);
-  gui.add(config, "criarVertice");
+  gui.add(config, "AdicionarVertice");
   gui.add(config, "time", 0, 100);
+  var textura = gui.addFolder("Textura");
+  textura.add(config,'textura').name('Mudar textura');
 };
 
 var TRS = function () {
@@ -140,6 +243,8 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
+var VAO;
+var gl;
 var cubeVAO;
 var cubeBufferInfo;
 var objectsToDraw = [];
@@ -150,7 +255,14 @@ var objeto = {};
 var countF = 0;
 var countC = 0;
 var programInfo;
-
+var wireframe = true
+var cubeBufferInfoTexture;
+var cubeVAOTextura;
+var programInfoTextura;
+var testaTextura = false;
+var textura = false;
+var arrays_cube_wireframe;
+ 
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
@@ -165,15 +277,48 @@ function makeNode(nodeDescription) {
   };
   trs.translation = nodeDescription.translation || trs.translation;
   if (nodeDescription.draw !== false) {
-    node.drawInfo = {
-      uniforms: {
-        u_colorOffset: [0, 1, 1, 1],
-        u_colorMult: [0.4, 0.1, 0.4, 1],
-      },
-      programInfo: programInfo,
-      bufferInfo: cubeBufferInfo,
-      vertexArray: cubeVAO,
+    if(testaTextura == true){
+      node.drawInfo = {
+        uniforms: {
+          u_matrix: [0, 0, 0, 1],
+        },
+        programInfo: programInfoTextura,
+        bufferInfo: cubeBufferInfoTexture,
+        vertexArray: cubeVAOTextura,
+      };
+    } else{
+      node.drawInfo = {
+        uniforms: {
+          u_colorOffset: [0, 1, 1, 1],
+          u_colorMult: [0.4, 0.1, 0.4, 1],
+        },
+        programInfo: programInfoTextura,
+        bufferInfo: cubeBufferInfoTexture,
+        vertexArray: cubeVAOTextura,
+      }
     };
+    if (wireframe){
+      console.log("idfubg")
+      node.drawInfo = {
+        uniforms: {
+          u_matrix: [0, 0, 0, 1],
+        },
+        programInfo: programInfo,
+        bufferInfo: cubeBufferInfo,
+        vertexArray: cubeVAO,
+      };
+    } else{
+      node.drawInfo = {
+        uniforms: {
+          u_colorOffset: [0, 1, 1, 1],
+          u_colorMult: [0.4, 0.1, 0.4, 1],
+        },
+        programInfo: programInfo,
+        bufferInfo: cubeBufferInfo,
+        vertexArray: cubeVAO,
+      }
+    };
+    
     objectsToDraw.push(node.drawInfo);
     objects.push(node);
   }
@@ -190,7 +335,7 @@ function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
   var canvas = document.querySelector("#canvas");
-  var gl = canvas.getContext("webgl2");
+  gl = canvas.getContext("webgl2");
   if (!gl) {
     return;
   }
@@ -199,10 +344,107 @@ function main() {
 
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
-  twgl.setDefaults({attribPrefix: "a_"});
+  twgl.setAttributePrefix("a_");
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
 
-  var arrays_cube = {
+  
+
+  arrays_cube_wireframe = {
+    // vertex positions for a cube
+    position: new Float32Array([
+      1, 1, -1, //0
+       
+      1, 1, 1,//1
+
+      1, -1, 1,//2
+
+      1, 1, -1,//0
+
+      1, -1, 1,//2
+
+      1, -1, -1,//3 //Direito
+
+      -1, 1, 1,//4
+
+      -1, 1, -1, //5
+
+      -1, -1, -1,//6 
+
+      -1, 1, 1,//4 
+
+      -1, -1, -1,//6 
+
+      -1, -1, 1, //7 // Esquerdo
+
+      -1, 1, 1,//8
+
+      1, 1, 1, //9
+
+      1, 1, -1, //10
+
+      -1, 1, 1,//8
+
+      1, 1, -1, //10
+
+      -1, 1, -1, //11 //Cima
+      
+      -1, -1, -1,//12
+
+      1, -1, -1,//13
+
+      1, -1, 1,//14
+
+      -1, -1, -1,//12
+
+      1, -1, 1,//14
+
+      -1, -1, 1,//15
+
+      1, 1, 1, //16
+
+      -1, 1, 1, //17
+
+      -1, -1, 1, //18
+
+      1, 1, 1, //16
+
+      -1, -1, 1, //18
+
+      1, -1, 1, //19
+
+      -1, 1, -1,//20
+
+      1, 1, -1,//21
+
+      1, -1, -1,//22
+
+      -1, 1, -1,//20
+
+      1, -1, -1,//22
+       
+      -1, -1, -1,//23
+    ]),
+    // vertex normals for a cube
+    normal: new Float32Array([
+      1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+      0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+      -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+      0, 0, -1,
+    ]),
+    barycentric: [],
+  };
+
+  arrays_cube_wireframe.barycentric = calculateBarycentric(
+    arrays_cube_wireframe.position.length
+  );
+  cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube_wireframe);
+
+  // setup GLSL program
+  programInfo = twgl.createProgramInfo(gl, [vs_wireframe, fs_wireframe]);
+
+  cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
+
+  var arrays_cube_textura={
     // vertex positions for a cube
     position: new Float32Array([
       1, 1, -1, //0
@@ -218,7 +460,7 @@ function main() {
       1, 1, 1, //9
       1, 1, -1, //10
       -1, 1, -1, //11
-
+  
       -1, -1, -1,//12
        1, -1, -1,//13
       1, -1, 1, //14
@@ -245,29 +487,30 @@ function main() {
       0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12,
       14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
     ]),
-  }; 
-  cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+  };
 
-  
-
-  
+  cubeBufferInfoTexture = twgl.createBufferInfoFromArrays(gl, arrays_cube_textura);
 
   // setup GLSL program
-  programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+  programInfoTextura = twgl.createProgramInfo(gl, [vs, fs]);
 
-  cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
-  
-  var imagem =["miranha.jpeg"]
+  cubeVAOTextura = twgl.createVAOFromBufferInfo(gl, programInfoTextura, cubeBufferInfoTexture);
 
-  var tex = twgl.createTexture(gl, {
-    target: gl.TEXTURE_2D_ARRAY,
-    src: imagem,
-  });
+  var imagem =["noodles.jpg"]
   
-  var uniforms = {
-    u_diffuse: tex,
-    u_faceIndex: [0, 1, 2, 3, 4, 5],
-  };
+      var tex = twgl.createTexture(gl, {
+      target: gl.TEXTURE_2D_ARRAY,
+      src: imagem,
+      });
+    
+      var uniforms = {
+      u_diffuse: tex,
+      u_faceIndex: [0, 1, 2, 3, 4, 5],
+    };
+
+
+
+
   function degToRad(d) {
     return (d * Math.PI) / 180;
   }
@@ -284,8 +527,9 @@ function main() {
     translation: [0, 0, 0],
     children: [],
   };
-
+  console.log(objectsToDraw)
   scene = makeNode(objeto);
+  
 
   requestAnimationFrame(drawScene);
 
@@ -300,7 +544,7 @@ function main() {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    gl.enable(gl.CULL_FACE);
+    //gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
     // Compute the projection matrix
@@ -336,15 +580,16 @@ function main() {
     });
 
     // ------ Draw the objects --------
-
+    if(testaTextura == true){
+      gl.useProgram(programInfoTextura.program);
+      twgl.setBuffersAndAttributes(gl, programInfoTextura, cubeBufferInfoTexture);
+      twgl.setUniforms(programInfoTextura, uniforms);
+      twgl.drawBufferInfo(gl, cubeBufferInfoTexture);
+    }
     twgl.drawObjectList(gl, objectsToDraw);
-    gl.useProgram(programInfo.program);
-    twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
-    twgl.setUniforms(programInfo, uniforms);
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
-    //gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
     requestAnimationFrame(drawScene);
   }
+  
 }
 
 main();
