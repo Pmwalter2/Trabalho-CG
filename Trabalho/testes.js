@@ -2,6 +2,32 @@
 
 var vs = `#version 300 es
 in vec4 a_position;
+in vec4 a_color;
+uniform mat4 u_matrix;
+out vec4 v_color;
+void main() {
+  // Multiply the position by the matrix.
+  gl_Position = u_matrix * a_position;
+  // Pass the color to the fragment shader.
+  //v_color = a_color;
+  v_color = a_position;
+}
+`;
+
+var fs = `#version 300 es
+precision highp float;
+// Passed in from the vertex shader.
+in vec4 v_color;
+uniform vec4 u_colorMult;
+uniform vec4 u_colorOffset;
+out vec4 outColor;
+void main() {
+   outColor = v_color * u_colorMult + u_colorOffset;
+}
+`;
+
+var vs_texture = `#version 300 es
+in vec4 a_position;
 in vec2 a_texcoord;
 in uint a_faceId;
 uniform mat4 u_matrix;
@@ -16,7 +42,7 @@ void main() {
 }
 `;
 
-var fs = `#version 300 es
+var fs_texture = `#version 300 es
 precision highp float;
 // Passed in from the vertex shader.
 
@@ -34,22 +60,80 @@ void main() {
 }
 `;
 
+
+
+const calculateBarycentric = (length) => {
+  const n = length / 9;
+  const barycentric = [];
+  for (let i = 0; i < n; i++) barycentric.push(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  return new Float32Array(barycentric);
+};
+
 const degToRad = (d) => (d * Math.PI) / 180;
 
 const radToDeg = (r) => (r * 180) / Math.PI;
 
+const calculaMeioDoTriangulo = (arr) => {
+  const x = (arr[0] + arr[3] + arr[6]) / 3;
+  const y = (arr[1] + arr[4] + arr[7]) / 3;
+  const z = (arr[2] + arr[5] + arr[8]) / 3;
+
+  return [x, y, z];
+};
+
+const crossProduct = (a, b) => {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+};
+
+const somaNormal = (v, n) => {
+  return [v[0] + n[0], v[1] + n[1], v[2] + n[2]];
+};
+
+const calculaMeioDoTrianguloIndices = (arr) => {
+  // arr contem os indices dos vertices q formam o triangulo que quero adicionar um vertice no meio
+  const x =
+    (arrays_cube.position[arr[0] * 3] +
+      arrays_cube.position[arr[1] * 3] +
+      arrays_cube.position[arr[2] * 3]) /
+    3;
+  const y =
+    (arrays_cube.position[arr[0] * 3 + 1] +
+      arrays_cube.position[arr[1] * 3 + 1] +
+      arrays_cube.position[arr[2] * 3 + 1]) /
+    3;
+  const z =
+    (arrays_cube.position[arr[0] * 3 + 2] +
+      arrays_cube.position[arr[1] * 3 + 2] +
+      arrays_cube.position[arr[2] * 3 + 2]) /
+    3;
+
+  return [x, y, z];
+};
+
+var teste = 1;
+var gui;
+var qtd_triangulos = 0;
 var config = {
-  rotate: degToRad(20),
+  rotate: 0,
   x: 0,
   y: 0,
-  rotation: 0,
+  z: 0,
+  spin_x: 0,
+  spin_y: 0,
   camera_x: 4,
+  camera_y: 3.5,
+  camera_z: 10,
+
   addCaixa: function () {
     countC++;
 
     objeto.children.push({
       name: `cubo${countC}`,
-      translation: [0, countC, 0],
+      translation: [countC + 1, 0, 0],
     });
 
     objectsToDraw = [];
@@ -58,21 +142,202 @@ var config = {
     scene = makeNode(objeto);
   },
   triangulo: 0,
-  criarVertice: function () {},
-  time: 0.0,
+
+  addTextura:function(){
+    
+    imagem =["noodles.jpg", "miranha.jpeg", "dado.jpg", "goku.jpg"]
+    var tam = imagem.length
+    var n_aleatorio = Math.floor(Math.random() * tam);
+    console.log(imagem[n_aleatorio])
+    var retorno_aleatorio = imagem[n_aleatorio]
+    
+
+    tex = twgl.createTexture(gl, {
+      target: gl.TEXTURE_2D_ARRAY,
+      src: retorno_aleatorio,
+    });
+    
+  },
+  criarVertice: function () {
+    console.log("indices");
+    console.log(arrays_cube.indices);
+    var n = config.triangulo * 3;
+    var inicio = arrays_cube.indices.slice(0, n);
+    var temp = arrays_cube.indices.slice(n, n + 3);
+    var resto = arrays_cube.indices.slice(
+      n + 3,
+      arrays_cube.indices.length
+    );
+    var b = calculaMeioDoTrianguloIndices(temp);
+    var new_indice = arrays_cube.position.length / 3;
+
+    arrays_cube.position = new Float32Array([
+      ...arrays_cube.position,
+      ...b,
+    ]);
+    console.log("b");
+    console.log(arrays_cube.position);
+    var novotri = [
+      temp[0],
+      new_indice,
+      temp[1],
+
+      temp[1],
+      new_indice,
+      temp[2],
+
+      temp[2],
+      new_indice,
+      temp[0],
+    ];
+    console.log("novotri");
+    console.log(novotri);
+    var final = new Uint16Array([...inicio, ...novotri, ...resto]);
+
+    arrays_cube.indices = new Uint16Array([...final]);
+    console.log("indices");
+    console.log(arrays_cube.indices);
+
+    console.log("positions");
+    console.log(arrays_cube.position);
+
+    // console.log(arrays_cube.position);
+    // console.log(arrays_cube.indices);
+    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+
+    gui.updateDisplay();
+    //drawScene();
+  },
+  //time: 0.0,
+  target: 3.5,
+  vx: 0,
+  vy: 0,
+  vz: 0,
+  vertice: 0,
+  moverVertice: function () {
+    var n = config.vertice * 3;
+    arrays_cube.position[n] = config.vx;
+    arrays_cube.position[n + 1] = config.vy;
+    arrays_cube.position[n + 2] = config.vz;
+    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+  },
+  camera_1: false,
+  camera_2: false,
+  camera_3: false,
 };
 
+const moveVertice = function () {
+  var n = config.vertice * 3;
+  arrays_cube.position[n] = config.vx;
+  arrays_cube.position[n + 1] = config.vy;
+  arrays_cube.position[n + 2] = config.vz;
+  cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+
+  objectsToDraw = [];
+  objects = [];
+  nodeInfosByName = {};
+  scene = makeNode(objeto);
+};
+
+var folder_vertice;
+var folder_camera;
+var folder_matrix;
+var folder_textura;
+
 const loadGUI = () => {
-  const gui = new dat.GUI();
-  gui.add(config, "rotate", 0, 20, 0.5);
-  gui.add(config, "x", -150, 150, 5);
-  gui.add(config, "y", -100, 100, 5);
-  gui.add(config, "rotation", -1000, 1000, 10);
+  gui = new dat.GUI();
+  
+  folder_vertice = gui.addFolder("Manipular vertices");
+  folder_camera = gui.addFolder("Manipular cameras");
+  folder_matrix = gui.addFolder("Manipular matrizes");
+  folder_textura = gui.addFolder("Manipula textura")
+  folder_vertice.open();
+  folder_matrix
+    .add(config, "rotate", 0, 360, 0.5)
+    .listen()
+    .onChange(function () {
+      nodeInfosByName["cubo0"].trs.rotation[0] = degToRad(config.rotate);
+      // A ANIMACAO DE GIRAR SOBREPOE ESSA ALTERACAO TODA VEZ Q RENDERIZA
+      // TEM Q USAR OU UM OU OUTRO
+    });
+  
+  folder_matrix.add(config, "x", -10, 10, 0.5);
+  folder_matrix.add(config, "y", -10, 10, 0.5);
+  folder_matrix.add(config, "z", -10, 10, 0.5);
+
+  folder_matrix.add(config, "spin_x", -1000, 1000, 2);
+  folder_matrix.add(config, "spin_y", -1000, 1000, 2);
+
   gui.add(config, "addCaixa");
-  gui.add(config, "camera_x", 0, 20, 0.5);
-  gui.add(config, "triangulo", 0, 20, 0.5);
-  gui.add(config, "criarVertice");
-  gui.add(config, "time", 0, 100);
+  folder_camera.add(config, "camera_x", -200, 200, 1);
+  folder_camera.add(config, "camera_y", -200, 200, 1);
+  folder_camera.add(config, "camera_z", -200, 200, 1);
+
+  folder_vertice.add(config, "triangulo", 0, 20, 1);
+  folder_vertice.add(config, "criarVertice");
+  folder_textura.add(config, "addTextura");
+  // gui
+  //   .add(config, "time", 0, teste)
+  //   .listen()
+  //   .onChange(function () {
+  //     //config.rotate = config.time + 1;
+
+  //     gui.updateDisplay();
+  //   });
+  folder_camera.add(config, "target", -5, 5, 0.01);
+  folder_vertice.add(config, "vertice").onChange(function () {
+    const temp = arrays_cube.position.slice(
+      config.vertice * 3,
+      config.vertice * 3 + 3
+    );
+
+    config.vx = temp[0];
+    config.vy = temp[1];
+    config.vz = temp[2];
+
+    gui.updateDisplay();
+  });
+  folder_vertice.add(config, "vx", -10, 10, 0.1).onChange(function () {
+    moveVertice();
+  });
+  folder_vertice.add(config, "vy", -10, 10, 0.1).onChange(function () {
+    moveVertice();
+  });
+  folder_vertice.add(config, "vz", -10, 10, 0.1).onChange(function () {
+    moveVertice();
+  });
+  folder_camera
+    .add(config, "camera_1")
+    .listen()
+    .onChange(function () {
+      config.camera_2 = false;
+      config.camera_3 = false;
+    });
+  folder_camera
+    .add(config, "camera_2")
+    .listen()
+    .onChange(function () {
+      config.camera_1 = false;
+      config.camera_3 = false;
+    });
+  folder_camera
+    .add(config, "camera_3")
+    .listen()
+    .onChange(function () {
+      config.camera_1 = false;
+      config.camera_2 = false;
+    });
+  //folder_vertice.add(config, "moverVertice");
 };
 
 var TRS = function () {
@@ -140,7 +405,12 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
-var cubeVAO;
+var uniforms;
+let oldTime = 0;
+var texturas;
+var VAO;
+var imagem;
+var tex;
 var cubeBufferInfo;
 var objectsToDraw = [];
 var objects = [];
@@ -150,6 +420,18 @@ var objeto = {};
 var countF = 0;
 var countC = 0;
 var programInfo;
+var wireframe = false;
+var arrays_cube;
+var gl;
+var aspect;
+var projectionMatrix;
+var cameraMatrix;
+var viewMatrix;
+var viewProjectionMatrix;
+var adjust;
+var speed;
+var c;
+var fieldOfViewRadians;
 
 //CAMERA VARIABLES
 var cameraPosition;
@@ -165,22 +447,34 @@ function makeNode(nodeDescription) {
   };
   trs.translation = nodeDescription.translation || trs.translation;
   if (nodeDescription.draw !== false) {
-    node.drawInfo = {
-      uniforms: {
-        u_colorOffset: [0, 1, 1, 1],
-        u_colorMult: [0.4, 0.1, 0.4, 1],
-      },
-      programInfo: programInfo,
-      bufferInfo: cubeBufferInfo,
-      vertexArray: cubeVAO,
-    };
+    if (wireframe) {
+      node.drawInfo = {
+        uniforms: {
+          u_matrix: [0, 0, 0, 1],
+        },
+        programInfo: programInfo,
+        bufferInfo: cubeBufferInfo,
+        vertexArray: VAO,
+      };
+    } else {
+      node.drawInfo = {
+        uniforms: {
+          u_colorOffset: [0.2, 0.2, 0.7, 0],
+          u_colorMult: [0.4, 0.1, 0.4, 1],
+        },
+        programInfo: programInfo,
+        bufferInfo: cubeBufferInfo,
+        vertexArray: VAO,
+      };
+    }
     objectsToDraw.push(node.drawInfo);
     objects.push(node);
+
+    makeNodes(nodeDescription.children).forEach(function (child) {
+      child.setParent(node);
+    });
+    return node;
   }
-  makeNodes(nodeDescription.children).forEach(function (child) {
-    child.setParent(node);
-  });
-  return node;
 }
 
 function makeNodes(nodeDescriptions) {
@@ -190,7 +484,7 @@ function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
   var canvas = document.querySelector("#canvas");
-  var gl = canvas.getContext("webgl2");
+  gl = canvas.getContext("webgl2");
   if (!gl) {
     return;
   }
@@ -199,10 +493,9 @@ function main() {
 
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
-  twgl.setDefaults({attribPrefix: "a_"});
+  twgl.setAttributePrefix("a_");
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
-
-  var arrays_cube = {
+  arrays_cube = {
     // vertex positions for a cube
     position: new Float32Array([
       1, 1, -1, //0
@@ -245,34 +538,69 @@ function main() {
       0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12,
       14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
     ]),
-  }; 
+    barycentric: [],
+  };
+  arrays_cube.barycentric = calculateBarycentric(
+    arrays_cube.position.length
+  );
+  for (
+    let index = 0;
+    index < arrays_cube.indices.length;
+    index = index + 3
+  ) {
+    // cross(B-A, C-A)
+    var a = arrays_cube.position[arrays_cube.indices[index]];
+    var b = arrays_cube.position[arrays_cube.indices[index + 1]];
+    var c = arrays_cube.position[arrays_cube.indices[index + 2]];
+    var x = crossProduct(
+      [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
+      [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+    );
+
+    arrays_cube.normal[arrays_cube.indices[index]] = somaNormal(
+      arrays_cube.normal[arrays_cube.indices[index]],
+      x
+    );
+    arrays_cube.normal[arrays_cube.indices[index + 1]] = somaNormal(
+      arrays_cube.normal[arrays_cube.indices[index + 1]],
+      x
+    );
+    arrays_cube.normal[arrays_cube.indices[index + 2]] = somaNormal(
+      arrays_cube.normal[arrays_cube.indices[index + 2]],
+      x
+    );
+  }
+
+ 
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
-
-  
-
   
 
   // setup GLSL program
-  programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 
-  cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
+  programInfo = twgl.createProgramInfo(gl, [vs_texture, fs_texture]);
+
+  VAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
   
-  var imagem =["miranha.jpeg"]
+  texturas =["miranha.jpeg", "dado.jpg", "goku.jpg","noodles.jpg"]
 
-  var tex = twgl.createTexture(gl, {
+  tex = twgl.createTexture(gl, {
     target: gl.TEXTURE_2D_ARRAY,
-    src: imagem,
+    src: texturas,
   });
-  
-  var uniforms = {
+
+  uniforms = {
     u_diffuse: tex,
-    u_faceIndex: [0, 1, 2, 3, 4, 5],
-  };
+    u_faceIndex:[0, 1, 2, 3, 4, 5],
+  }
+
+  
+  
+
   function degToRad(d) {
     return (d * Math.PI) / 180;
   }
 
-  var fieldOfViewRadians = degToRad(60);
+  fieldOfViewRadians = degToRad(60);
 
   objectsToDraw = [];
   objects = [];
@@ -284,67 +612,120 @@ function main() {
     translation: [0, 0, 0],
     children: [],
   };
-
+  console.log(programInfo);
   scene = makeNode(objeto);
-
+  cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
   requestAnimationFrame(drawScene);
 
   // Draw the scene.
-  function drawScene(time) {
-    time *= 0.001;
-    config.time = time;
-    
+}
+function drawScene(time) {
+  time *= 0.001;
+  teste = time;
+  config.time = config.time;
+  twgl.resizeCanvasToDisplaySize(gl.canvas);
 
-    twgl.resizeCanvasToDisplaySize(gl.canvas);
+  // Tell WebGL how to convert from clip space to pixels
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    // Tell WebGL how to convert from clip space to pixels
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-
-    // Compute the projection matrix
-    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    var projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, 1, 200);
-
-    // Compute the camera's matrix using look at.
-    cameraPosition = [config.camera_x, 3.5, 10];
-    target = [0, 3.5, 0];
-    up = [0, 1, 0];
-    var cameraMatrix = m4.lookAt(cameraPosition, target, up);
-
-    // Make a view matrix from the camera matrix.
-    var viewMatrix = m4.inverse(cameraMatrix);
-
-    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
-
-    var adjust;
-    var speed = 3;
-    var c = time * speed;
-
-    adjust = degToRad(time * config.rotation);
-    nodeInfosByName["cubo0"].trs.rotation[0] = adjust;
-    // Update all world matrices in the scene graph
-    scene.updateWorldMatrix();
-
-    // Compute all the matrices for rendering
-    objects.forEach(function (object) {
-      object.drawInfo.uniforms.u_matrix = m4.multiply(
-        viewProjectionMatrix,
-        object.worldMatrix
-      );
-    });
-
-    // ------ Draw the objects --------
-
-    twgl.drawObjectList(gl, objectsToDraw);
-    gl.useProgram(programInfo.program);
-    twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
-    twgl.setUniforms(programInfo, uniforms);
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
-    //gl.drawElements(gl.LINE_LOOP, arrays_cube.indices.length, gl.UNSIGNED_SHORT, 0); 
-    requestAnimationFrame(drawScene);
+  if ((oldTime | 0) < (time | 0)) {
+    uniforms.u_faceIndex[randInt(6)] = randInt(texturas.length);
   }
+  oldTime = time;
+
+  //gl.enable(gl.CULL_FACE);
+  gl.enable(gl.DEPTH_TEST);
+
+  // Compute the projection matrix
+  var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+  var projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, 1, 200);
+
+  // Compute the camera's matrix using look at.
+  //cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
+  if (!config.camera_1 && !config.camera_2 && !config.camera_3) {
+    if (cameraPosition[0] > config.camera_x) cameraPosition[0] -= 1;
+    if (cameraPosition[0] < config.camera_x) cameraPosition[0] += 1;
+
+    if (cameraPosition[1] > config.camera_y) cameraPosition[1] -= 1;
+    if (cameraPosition[1] < config.camera_y) cameraPosition[1] += 1;
+
+    if (cameraPosition[2] > config.camera_z) cameraPosition[2] -= 1;
+    if (cameraPosition[2] < config.camera_z) cameraPosition[2] += 1;
+  } else if (config.camera_1) {
+    if (cameraPosition[0] > 4) cameraPosition[0] -= 0.5;
+    if (cameraPosition[0] < 4) cameraPosition[0] += 0.5;
+
+    if (cameraPosition[1] > 4) cameraPosition[1] -= 0.5;
+    if (cameraPosition[1] < 4) cameraPosition[1] += 0.5;
+
+    if (cameraPosition[2] > 10) cameraPosition[2] -= 0.5;
+    if (cameraPosition[2] < 10) cameraPosition[2] += 0.5;
+  } else if (config.camera_2) {
+    if (cameraPosition[0] > 10) cameraPosition[0] -= 0.5;
+    if (cameraPosition[0] < 10) cameraPosition[0] += 0.5;
+
+    if (cameraPosition[1] > 10) cameraPosition[1] -= 0.5;
+    if (cameraPosition[1] < 10) cameraPosition[1] += 0.5;
+
+    if (cameraPosition[2] > 13) cameraPosition[2] -= 0.5;
+    if (cameraPosition[2] < 13) cameraPosition[2] += 0.5;
+  } else if (config.camera_3) {
+    if (cameraPosition[0] > -2) cameraPosition[0] -= 0.5;
+    if (cameraPosition[0] < -2) cameraPosition[0] += 0.5;
+
+    if (cameraPosition[1] > -2) cameraPosition[1] -= 0.5;
+    if (cameraPosition[1] < -2) cameraPosition[1] += 0.5;
+
+    if (cameraPosition[2] > 5) cameraPosition[2] -= 0.5;
+    if (cameraPosition[2] < 5) cameraPosition[2] += 0.5;
+  }
+
+  target = [config.target, 0, 0];
+  up = [0, 1, 0];
+  var cameraMatrix = m4.lookAt(cameraPosition, target, up);
+
+  // Make a view matrix from the camera matrix.
+  var viewMatrix = m4.inverse(cameraMatrix);
+
+  var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
+
+  adjust;
+  speed = 3;
+  c = time * speed;
+
+  adjust = degToRad(time * config.spin_x);
+  nodeInfosByName["cubo0"].trs.rotation[0] = adjust;
+  adjust = degToRad(time * config.spin_y);
+  nodeInfosByName["cubo0"].trs.rotation[1] = adjust;
+  nodeInfosByName["cubo0"].trs.translation = [config.x, config.y, config.z];
+
+  //nodeInfosByName["cubo0"].trs.rotation[0] = degToRad(config.rotate);
+  // Update all world matrices in the scene graph
+  scene.updateWorldMatrix();
+
+  // Compute all the matrices for rendering
+  objects.forEach(function (object) {
+    object.drawInfo.uniforms.u_matrix = m4.multiply(
+      viewProjectionMatrix,
+      object.worldMatrix
+    );
+  });
+
+  // ------ Draw the objects --------
+  gl.useProgram(programInfo.program);
+  twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
+  twgl.setUniforms(programInfo, uniforms)
+  twgl.drawObjectList(gl, objectsToDraw);
+
+  requestAnimationFrame(drawScene);
+}
+
+function randInt(min, max) {
+  if (max === undefined) {
+    max = min;
+    min = 0;
+  }
+  return Math.random() * (max - min) + min | 0;
 }
 
 main();

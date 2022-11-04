@@ -145,22 +145,12 @@ var config = {
 
   addTextura:function(){
     
-    imagem =["noodles.jpg", "miranha.jpeg", "dado.jpg"]
-    var tam = imagem.length
-    var n_aleatorio = Math.floor(Math.random() * tam);
-    console.log(imagem[n_aleatorio])
-    var retorno_aleatorio = imagem[n_aleatorio]
-    
-
-    tex = twgl.createTexture(gl, {
-      target: gl.TEXTURE_2D_ARRAY,
-      src: retorno_aleatorio,
-    });
+    uniforms.u_faceIndex[randInt(6)]= randInt(texturas.lenght);
     
   },
   criarVertice: function () {
-    console.log("indices");
-    console.log(arrays_cube.indices);
+    
+    
     var n = config.triangulo * 3;
     var inicio = arrays_cube.indices.slice(0, n);
     var temp = arrays_cube.indices.slice(n, n + 3);
@@ -175,8 +165,7 @@ var config = {
       ...arrays_cube.position,
       ...b,
     ]);
-    console.log("b");
-    console.log(arrays_cube.position);
+   
     var novotri = [
       temp[0],
       new_indice,
@@ -190,19 +179,13 @@ var config = {
       new_indice,
       temp[0],
     ];
-    console.log("novotri");
-    console.log(novotri);
+    
     var final = new Uint16Array([...inicio, ...novotri, ...resto]);
 
     arrays_cube.indices = new Uint16Array([...final]);
-    console.log("indices");
-    console.log(arrays_cube.indices);
+    
 
-    console.log("positions");
-    console.log(arrays_cube.position);
-
-    // console.log(arrays_cube.position);
-    // console.log(arrays_cube.indices);
+    
     cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
 
     objectsToDraw = [];
@@ -405,6 +388,9 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
+var uniforms;
+let oldTime = 0;
+var texturas;
 var VAO;
 var imagem;
 var tex;
@@ -570,21 +556,24 @@ function main() {
 
  
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
-  
-
   // setup GLSL program
 
   programInfo = twgl.createProgramInfo(gl, [vs_texture, fs_texture]);
 
   VAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
   
-  var texturas =["miranha.jpeg"]
+  texturas =["goku.jpg","gokussj.jpg", "gokussj2.jpg", "gokussj3.jpg", "gokussj4.jpg", "gokussjgod.jpg", "gokussjblue.jpg"]
 
   tex = twgl.createTexture(gl, {
     target: gl.TEXTURE_2D_ARRAY,
     src: texturas,
   });
-  
+  console.log(tex)
+
+  uniforms = {
+    u_diffuse: tex,
+    u_faceIndex:[0, 1, 2, 3, 4, 5],
+  }
 
   function degToRad(d) {
     return (d * Math.PI) / 180;
@@ -602,7 +591,7 @@ function main() {
     translation: [0, 0, 0],
     children: [],
   };
-  console.log(programInfo);
+  
   scene = makeNode(objeto);
   cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
   requestAnimationFrame(drawScene);
@@ -617,6 +606,11 @@ function drawScene(time) {
 
   // Tell WebGL how to convert from clip space to pixels
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+  if ((oldTime | 0) < (time | 0)) {
+    uniforms.u_faceIndex[randInt(6)] = randInt(texturas.length);
+  }
+  oldTime = time;
 
   //gl.enable(gl.CULL_FACE);
   gl.enable(gl.DEPTH_TEST);
@@ -697,10 +691,19 @@ function drawScene(time) {
   });
 
   // ------ Draw the objects --------
-  
+  gl.useProgram(programInfo.program);
+  twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
+  twgl.setUniforms(programInfo, uniforms)
   twgl.drawObjectList(gl, objectsToDraw);
 
   requestAnimationFrame(drawScene);
 }
 
+function randInt(min, max) {
+  if (max === undefined) {
+    max = min;
+    min = 0;
+  }
+  return Math.random() * (max - min) + min | 0;
+}
 main();
