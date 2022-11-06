@@ -29,8 +29,26 @@ void main() {
 var vs_texture = `#version 300 es
 in vec4 a_position;
 in vec2 a_texcoord;
+in vec3 a_normal;
 in uint a_faceId;
+
 uniform mat4 u_matrix;
+uniform mat4 u_world;
+uniform mat4 u_worldInverseTranspose;
+
+
+uniform vec3 u_lightWorldPosition0;
+uniform vec3 u_viewWorldPosition;
+uniform vec3 u_lightWorldPosition1;
+uniform vec3 u_lightWorldPosition2;
+
+out vec3 v_normal;
+out vec3 v_surfaceToLight0;
+out vec3 v_surfaceToView0;
+out vec3 v_surfaceToLight1;
+out vec3 v_surfaceToView1;
+out vec3 v_surfaceToLight2;
+out vec3 v_surfaceToView2;
 out vec2 v_texcoord;
 flat out uint v_faceId;
 
@@ -39,6 +57,16 @@ void main() {
   v_faceId = a_faceId;
   v_texcoord = a_texcoord;
   gl_Position = u_matrix * a_position;
+  v_normal = mat3(u_worldInverseTranspose) * (a_normal);
+  vec3 surfaceWorldPosition = (u_world * a_position).xyz;
+  v_surfaceToLight0 = u_lightWorldPosition0 - surfaceWorldPosition;
+  v_surfaceToView0 = u_viewWorldPosition - surfaceWorldPosition;
+
+  v_surfaceToLight1 = u_lightWorldPosition1 - surfaceWorldPosition;
+  v_surfaceToView1 = u_viewWorldPosition - surfaceWorldPosition;
+
+  v_surfaceToLight2 = u_lightWorldPosition2 - surfaceWorldPosition;
+  v_surfaceToView2 = u_viewWorldPosition - surfaceWorldPosition;
 }
 `;
 
@@ -47,16 +75,88 @@ precision highp float;
 // Passed in from the vertex shader.
 
 in vec2 v_texcoord;
+in vec3 v_normal;
+in vec3 v_surfaceToLight0;
+in vec3 v_surfaceToView0;
+in vec3 v_surfaceToLight1;
+in vec3 v_surfaceToView1;
+in vec3 v_surfaceToLight2;
+in vec3 v_surfaceToView2;
 flat in uint v_faceId;
 // The texture.
 
 
+uniform vec4 u_color;
+uniform float u_shininess;
+
+uniform vec3 u_lightColor0;
+uniform vec3 u_specularColor0;
+
+uniform vec3 u_lightColor1;
+uniform vec3 u_specularColor1;
+
+uniform vec3 u_lightColor2;
+uniform vec3 u_specularColor2;
+
+uniform sampler2D u_texture;
+
 uniform mediump sampler2DArray u_diffuse;
 uniform uint u_faceIndex[6];
+
 out vec4 outColor;
 void main() {
-   
+  vec3 normal = normalize(v_normal);
+  vec3 surfaceToLightDirection0 = normalize(v_surfaceToLight0);
+  vec3 surfaceToViewDirection0 = normalize(v_surfaceToView0);
+
+  vec3 surfaceToLightDirection1 = normalize(v_surfaceToLight1);
+  vec3 surfaceToViewDirection1 = normalize(v_surfaceToView1);
+
+  vec3 surfaceToLightDirection2 = normalize(v_surfaceToLight2);
+  vec3 surfaceToViewDirection2 = normalize(v_surfaceToView2);
+
+  vec3 halfVector0 = normalize(surfaceToLightDirection0 + surfaceToViewDirection0);
+  float light0 = max(dot(v_normal, surfaceToLightDirection0),0.0);
+
+  vec3 halfVector1 = normalize(surfaceToLightDirection1 + surfaceToViewDirection1);
+  float light1 = max(dot(v_normal, surfaceToLightDirection1),0.0);
+
+  vec3 halfVector2 = normalize(surfaceToLightDirection2 + surfaceToViewDirection2);
+  float light2 = max(dot(v_normal, surfaceToLightDirection2),0.0);
+
+  float specular0 = 0.0;
+  float specular1 = 0.0;
+  float specular2 = 0.0;
+
   outColor = texture(u_diffuse, vec3(v_texcoord, u_faceIndex[v_faceId]));
+  vec3 color0;
+  vec3 color1;
+  vec3 color2;
+  vec3 spec0;
+  vec3 spec1;
+  vec3 spec2;
+
+  specular0 = pow(dot(normal, halfVector0), u_shininess);
+  specular1 = pow(dot(normal, halfVector1), u_shininess);
+  specular2 = pow(dot(normal, halfVector2), u_shininess);
+
+  if(light0>0.0){
+  color0 = light0 * u_lightColor0;
+  spec0 = specular0 * u_specularColor0;  
+  }
+
+  if(light1>0.0){
+  color1 = light1 * u_lightColor1;
+  spec1 = specular1 * u_specularColor1;
+  }
+
+  if(light2>0.0){
+  color2 = light2 * u_lightColor2;
+  spec2 = specular2 * u_specularColor2;
+  }
+  outColor.rgb *= (color0+color1+color2);
+  outColor.rgb += spec0 + spec1 + spec2 ;
+  
 }
 `;
 
@@ -205,22 +305,17 @@ const normalSemIndice = () => {
       arrays_cube.position[i + 7],
       arrays_cube.position[i + 8],
     ];
-    // console.log("a");
-    // console.log(a);
-    // console.log("b");
-    // console.log(b);
-    // console.log("c");
-    // console.log(c);
+    
     var x = crossProduct(
       [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
       [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
     );
-    console.log(`cross product: ${x}`);
+    
     arrays_cube.normal[i] = x[0];
     arrays_cube.normal[i + 1] = x[1];
     arrays_cube.normal[i + 2] = x[2];
 
-    console.log(`normal: ${arrays_cube.normal}`);
+    
   }
 };
 
@@ -247,15 +342,12 @@ const normalComIndice = () => {
       arrays_cube.position[i1 + 2],
       arrays_cube.position[i2 + 2],
     ];
-    console.log(`a: ${a}`);
-    console.log(`b: ${b}`);
-    console.log(`c: ${c}`);
+   
     var x = crossProduct(
       [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
       [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
     );
-    console.log(`cross product: ${x}`);
-    console.log();
+    
     var temp = somaNormal(
       [
         arrays_cube.normal[i0],
@@ -273,7 +365,7 @@ const normalComIndice = () => {
     arrays_cube.normal[i2 * 3] = temp[0];
     arrays_cube.normal[i2 * 3 + 1] = temp[1];
     arrays_cube.normal[i2 * 3 + 2] = temp[2];
-    console.log(`normal: ${arrays_cube.normal}`);
+    
   }
 };
 
@@ -309,7 +401,7 @@ const somaNormal = (v, n) => {
 };
 
 const calculaMeioDoTrianguloIndices = (arr) => {
-  console.log(arr)
+  
   // arr contem os indices dos vertices q formam o triangulo que quero adicionar um vertice no meio
   const x =
     (arrays_cube.position[arr[0] * 3] +
@@ -359,6 +451,7 @@ var config = {
       bufferInfo: triangleBufferInfo,
       vao: triangleVAO
     }
+    console.log("triangulo")
     listaObjetos.push(novoObjeto.name);
     objeto.children.push(novoObjeto);
 
@@ -368,7 +461,7 @@ var config = {
     scene = makeNode(objeto);
     gui.destroy();
     loadGUI(gl);
-    console.log(objeto)
+    
   },
   criarVertice: function () {
     
@@ -406,8 +499,6 @@ var config = {
 
     arrays_cube.indices = new Uint16Array([...final]);
     
-
-    
     cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
 
     objectsToDraw = [];
@@ -428,6 +519,11 @@ var config = {
   vz: 0,
   escolheObjeto: "cubo1",
   vertice: 0,
+  luzIndex: 0,
+  luzx: 5.8,
+  luzy: 4.5,
+  luzz: 8.1,
+  shininess: 300.0,
   camera_1: false,
   camera_2: false,
   camera_3: false,
@@ -450,6 +546,7 @@ var folder_vertice;
 var folder_camera;
 var folder_matrix;
 var folder_objeto;
+var folder_luz;
 
 const loadGUI = () => {
   gui = new dat.GUI();
@@ -458,14 +555,10 @@ const loadGUI = () => {
   folder_camera = gui.addFolder("Manipular cameras");
   folder_matrix = gui.addFolder("Manipular matrizes");
   folder_objeto = gui.addFolder("Manipula objetos")
+  folder_luz = gui.addFolder("Manipular luzes");
   folder_vertice.open();
-  folder_matrix
-    .add(config, "rotate", 0, 360, 0.5)
-    .listen()
-    .onChange(function () {
+  folder_matrix.add(config, "rotate", 0, 360, 0.5).listen().onChange(function () {
       nodeInfosByName["origin"].trs.rotation[0] = degToRad(config.rotate);
-      // A ANIMACAO DE GIRAR SOBREPOE ESSA ALTERACAO TODA VEZ Q RENDERIZA
-      // TEM Q USAR OU UM OU OUTRO
     });
   
   folder_matrix.add(config, "x", -10, 10, 0.5);
@@ -502,6 +595,39 @@ const loadGUI = () => {
     
   });
 
+  folder_luz.add(config, "luzIndex", listOfLights).onChange(function () {
+    config.luzx = arrLuz[config.luzIndex].position.x;
+    config.luzy = arrLuz[config.luzIndex].position.y;
+    config.luzz = arrLuz[config.luzIndex].position.z;
+    palette.corLuz = arrLuz[config.luzIndex].color;
+    palette.corSpec = arrLuz[config.luzIndex].spec;
+
+    gui.updateDisplay();
+  });
+  folder_luz.add(config, "luzx", -20, 20, 0.01).onChange(function () {
+    arrLuz[config.luzIndex].position.x = config.luzx;
+    arrLuz[config.luzIndex].position.y = config.luzy;
+    arrLuz[config.luzIndex].position.z = config.luzz;
+  });
+  folder_luz.add(config, "luzy", -20, 20, 0.01).onChange(function () {
+    arrLuz[config.luzIndex].position.x = config.luzx;
+    arrLuz[config.luzIndex].position.y = config.luzy;
+    arrLuz[config.luzIndex].position.z = config.luzz;
+  });
+  folder_luz.add(config, "luzz", -20, 200, 0.01).onChange(function () {
+    arrLuz[config.luzIndex].position.x = config.luzx;
+    arrLuz[config.luzIndex].position.y = config.luzy;
+    arrLuz[config.luzIndex].position.z = config.luzz;
+  });
+  folder_luz.add(config, "shininess", 0, 3000, 0.1);
+
+  folder_luz.addColor(palette, "corLuz").onChange(function () {
+    arrLuz[config.luzIndex].color = palette.corLuz;
+  });
+  folder_luz.addColor(palette, "corCubo");
+  folder_luz.addColor(palette, "corSpec").onChange(function () {
+    arrLuz[config.luzIndex].spec = palette.corSpec;
+  });
   folder_camera.add(config, "target", -5, 5, 0.01);
   folder_vertice.add(config, "vertice").onChange(function () {
     const temp = arrays_cube.position.slice(
@@ -613,9 +739,34 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
+
+const convertToZeroOne = (old_value, old_min, old_max) => {
+  return (old_value - old_min) / (old_max - old_min);
+};
+
+class Luz {
+  constructor(position, color, spec, shine) {
+    this.position = {
+      x: position[0],
+      y: position[1],
+      z: position[2],
+    };
+
+    this.color = color;
+    this.spec = spec;
+
+    this.shine = shine;
+  }
+}
+
+var listOfLights = [0, 1, 2];
+var arrLuz = [
+  new Luz([4, 0, 0], [255, 255, 255], [255, 255, 255], 300),
+  new Luz([-4, 0, 0], [255, 255, 255], [255, 255, 255], 300),
+  new Luz([5, 4, 8], [255, 255, 255], [255, 255, 255], 300),
+];
 var uniformes;
 let oldTime = 0;
-var id = 0;
 var texturas;
 var cubeVAO;
 var triangleVAO;
@@ -629,10 +780,8 @@ var objects = [];
 var nodeInfosByName = {};
 var scene;
 var objeto = {};
-var countF = 0;
 var countC = 0;
 var programInfo;
-var wireframe = false;
 var arrays_cube;
 var arrays_triangle;
 var gl;
@@ -644,6 +793,11 @@ var adjust;
 var speed;
 var c;
 var fieldOfViewRadians;
+var palette = {
+  corLuz: [255, 255, 255], // RGB array
+  corCubo: [255, 255, 255], // RGB array
+  corSpec: [255, 255, 255], // RGB array
+};
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
@@ -651,13 +805,13 @@ var up;
 
 function addCaixa(){
     countC++;
-    console.log(objeto)
     var novoObjeto = {
       name: `cubo${countC}`,
-      translation: [countC + 1, 0, 0],
+      translation: [countC * 2, 0, 0],
       bufferInfo: cubeBufferInfo,
       vao: cubeVAO
     }
+    console.log("caixa")
     listaObjetos.push(novoObjeto.name);
     objeto.children.push(novoObjeto);
 
@@ -793,7 +947,7 @@ function main() {
     target: gl.TEXTURE_2D_ARRAY,
     src: texturas,
   });
-  console.log(tex)
+  
 
   uniformes = {
     u_diffuse: tex,
@@ -819,10 +973,66 @@ function main() {
   };
   
   scene = makeNode(objeto);
+  objects.forEach(function (object) {
+    object.drawInfo.uniforms.u_lightWorldPosition0 = [
+      arrLuz[0].position.x,
+      arrLuz[0].position.y,
+      arrLuz[0].position.z,
+    ];
+    object.drawInfo.uniforms.u_lightWorldPosition1 = [
+      arrLuz[1].position.x,
+      arrLuz[1].position.y,
+      arrLuz[1].position.z,
+    ];
+    object.drawInfo.uniforms.u_lightWorldPosition2 = [
+      arrLuz[2].position.x,
+      arrLuz[2].position.y,
+      arrLuz[2].position.z,
+    ];
+
+    object.drawInfo.uniforms.u_lightColor0 = [
+      convertToZeroOne(arrLuz[0].color[0], 0, 255),
+      convertToZeroOne(arrLuz[0].color[1], 0, 255),
+      convertToZeroOne(arrLuz[0].color[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_lightColor1 = [
+      convertToZeroOne(arrLuz[1].color[0], 0, 255),
+      convertToZeroOne(arrLuz[1].color[1], 0, 255),
+      convertToZeroOne(arrLuz[1].color[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_lightColor2 = [
+      convertToZeroOne(arrLuz[2].color[0], 0, 255),
+      convertToZeroOne(arrLuz[2].color[1], 0, 255),
+      convertToZeroOne(arrLuz[2].color[2], 0, 255),
+    ];
+
+    object.drawInfo.uniforms.u_color = [
+      convertToZeroOne(palette["corCubo"][0], 0, 255),
+      convertToZeroOne(palette["corCubo"][1], 0, 255),
+      convertToZeroOne(palette["corCubo"][2], 0, 255),
+      1,
+    ];
+
+    object.drawInfo.uniforms.u_specularColor0 = [
+      convertToZeroOne(arrLuz[0].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[0].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[0].spec[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_specularColor1 = [
+      convertToZeroOne(arrLuz[1].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[1].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[1].spec[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_specularColor2 = [
+      convertToZeroOne(arrLuz[2].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[2].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[2].spec[2], 0, 255),
+    ];
+  });
   cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
   addCaixa();
   loadGUI(gl);
-  console.log(objects)
+  
   requestAnimationFrame(drawScene);
 
   // Draw the scene.
@@ -918,6 +1128,76 @@ function drawScene(time) {
       viewProjectionMatrix,
       object.worldMatrix
     );
+    object.drawInfo.uniforms.u_lightWorldPosition0 = [
+      arrLuz[0].position.x,
+      arrLuz[0].position.y,
+      arrLuz[0].position.z,
+    ];
+    object.drawInfo.uniforms.u_lightWorldPosition1 = [
+      arrLuz[1].position.x,
+      arrLuz[1].position.y,
+      arrLuz[1].position.z,
+    ];
+    object.drawInfo.uniforms.u_lightWorldPosition2 = [
+      arrLuz[2].position.x,
+      arrLuz[2].position.y,
+      arrLuz[2].position.z,
+    ];
+
+    object.drawInfo.uniforms.u_lightColor0 = [
+      convertToZeroOne(arrLuz[0].color[0], 0, 255),
+      convertToZeroOne(arrLuz[0].color[1], 0, 255),
+      convertToZeroOne(arrLuz[0].color[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_lightColor1 = [
+      convertToZeroOne(arrLuz[1].color[0], 0, 255),
+      convertToZeroOne(arrLuz[1].color[1], 0, 255),
+      convertToZeroOne(arrLuz[1].color[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_lightColor2 = [
+      convertToZeroOne(arrLuz[2].color[0], 0, 255),
+      convertToZeroOne(arrLuz[2].color[1], 0, 255),
+      convertToZeroOne(arrLuz[2].color[2], 0, 255),
+    ];
+
+    object.drawInfo.uniforms.u_color = [
+      convertToZeroOne(palette["corCubo"][0], 0, 255),
+      convertToZeroOne(palette["corCubo"][1], 0, 255),
+      convertToZeroOne(palette["corCubo"][2], 0, 255),
+      1,
+    ];
+    
+    object.drawInfo.uniforms.u_specularColor0 = [
+      convertToZeroOne(arrLuz[0].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[0].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[0].spec[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_specularColor1 = [
+      convertToZeroOne(arrLuz[1].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[1].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[1].spec[2], 0, 255),
+    ];
+    object.drawInfo.uniforms.u_specularColor2 = [
+      convertToZeroOne(arrLuz[2].spec[0], 0, 255),
+      convertToZeroOne(arrLuz[2].spec[1], 0, 255),
+      convertToZeroOne(arrLuz[2].spec[2], 0, 255),
+    ];
+
+    object.drawInfo.uniforms.u_color = [
+      convertToZeroOne(palette["corCubo"][0], 0, 255),
+      convertToZeroOne(palette["corCubo"][1], 0, 255),
+      convertToZeroOne(palette["corCubo"][2], 0, 255),
+      1,
+    ];
+    object.drawInfo.uniforms.u_world = object.worldMatrix;
+
+    object.drawInfo.uniforms.u_worldInverseTranspose = m4.transpose(
+      m4.inverse(object.worldMatrix)
+    );
+
+    object.drawInfo.uniforms.u_viewWorldPosition = cameraPosition;
+
+    object.drawInfo.uniforms.u_shininess = config.shininess;
   });
 
   // ------ Draw the objects --------
