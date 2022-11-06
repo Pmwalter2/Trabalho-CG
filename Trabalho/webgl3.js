@@ -60,7 +60,222 @@ void main() {
 }
 `;
 
+const calculateNormal = (position, indices) => {
+  let pontos = [];
+  let faces = [];
+  let resultado;
+  let vetorA1 = [];
+  let vetorA2 = [];
+  let vetorB1 = [];
+  let vetorB2 = [];
+  let vetorA3 = [];
+  let vetorB3 = [];
+  let produto = [];
+  let normal;
 
+  for (let i = 0; i < position.length; i += 3) {
+    pontos.push([position[i], position[i + 1], position[i + 2]]);
+  }
+
+  for (let i = 0; i < indices.length; i += 3) {
+    faces.push([indices[i], indices[i + 1], indices[i + 2]]);
+  }
+
+  var normalUsadas = {};
+
+  for (let i = 0, j = 0; i < position.length; i += 3, j++) {
+    normalUsadas[j] = [];
+  }
+
+  normal = faces.map((item) => {
+    // AB AC
+    vetorA1 = [
+      pontos[item[1]][0] - pontos[item[0]][0],
+      pontos[item[1]][1] - pontos[item[0]][1],
+      pontos[item[1]][2] - pontos[item[0]][2],
+    ];
+    vetorB1 = [
+      pontos[item[2]][0] - pontos[item[0]][0],
+      pontos[item[2]][1] - pontos[item[0]][1],
+      pontos[item[2]][2] - pontos[item[0]][2],
+    ];
+
+    // BA BC
+    vetorB2 = [
+      pontos[item[0]][0] - pontos[item[1]][0],
+      pontos[item[0]][1] - pontos[item[1]][1],
+      pontos[item[0]][2] - pontos[item[1]][2],
+    ];
+    vetorA2 = [
+      pontos[item[2]][0] - pontos[item[1]][0],
+      pontos[item[2]][1] - pontos[item[1]][1],
+      pontos[item[2]][2] - pontos[item[1]][2],
+    ];
+
+    // CA CB
+    vetorA3 = [
+      pontos[item[0]][0] - pontos[item[2]][0],
+      pontos[item[0]][1] - pontos[item[2]][1],
+      pontos[item[0]][2] - pontos[item[2]][2],
+    ];
+    vetorB3 = [
+      pontos[item[1]][0] - pontos[item[2]][0],
+      pontos[item[1]][1] - pontos[item[2]][1],
+      pontos[item[1]][2] - pontos[item[2]][2],
+    ];
+
+    produto = [
+      vetorA1[1] * vetorB1[2] - vetorB1[1] * vetorA1[2],
+      vetorB1[0] * vetorA1[2] - vetorA1[0] * vetorB1[2],
+      vetorA1[0] * vetorB1[1] - vetorB1[0] * vetorA1[1],
+
+      vetorA2[1] * vetorB2[2] - vetorB2[1] * vetorA2[2],
+      vetorB2[0] * vetorA2[2] - vetorA2[0] * vetorB2[2],
+      vetorA2[0] * vetorB2[1] - vetorB2[0] * vetorA2[1],
+
+      vetorA3[1] * vetorB3[2] - vetorB3[1] * vetorA3[2],
+      vetorB3[0] * vetorA3[2] - vetorA3[0] * vetorB3[2],
+      vetorA3[0] * vetorB3[1] - vetorB3[0] * vetorA3[1],
+    ];
+
+    let distancia = [];
+
+    for (let i = 0, j = 0; i < produto.length; i += 3, j++) {
+      distancia.push(
+        Math.abs(
+          Math.sqrt(
+            produto[i] * produto[i] +
+              produto[i + 1] * produto[i + 1] +
+              produto[i + 2] * produto[i + 2]
+          )
+        )
+      );
+
+      produto[i] = produto[i] / distancia[j];
+      produto[i + 1] = produto[i + 1] / distancia[j];
+      produto[i + 2] = produto[i + 2] / distancia[j];
+    }
+
+    for (let i = 0, j = 0; i < produto.length; i += 3, j++) {
+      if (normalUsadas[item[0]].length == 0) {
+        normalUsadas[item[0]] = [produto[i], produto[i + 1], produto[i + 2]];
+      } else {
+        if (normalUsadas[item[1]].length == 0) {
+          normalUsadas[item[1]] = [produto[i], produto[i + 1], produto[i + 2]];
+        } else {
+          normalUsadas[item[2]] = [produto[i], produto[i + 1], produto[i + 2]];
+        }
+      }
+    }
+
+    return produto;
+  });
+
+  let normaisTratadas = [];
+
+  for (const item in normalUsadas) {
+    for (let i = 0; i < normalUsadas[item].length; i++) {
+      normaisTratadas.push(normalUsadas[item][i]);
+    }
+  }
+
+  return normaisTratadas;
+};
+
+const normalSemIndice = () => {
+  for (let i = 0; i < arrays_cube.position.length; i = i + 9) {
+    // cross(B-A, C-A)
+    // var i0 = arrays_cube.indices[i];
+    // var i1 = arrays_cube.indices[i + 1];
+    // var i2 = arrays_cube.indices[i + 2];
+
+    var a = [
+      arrays_cube.position[i],
+      arrays_cube.position[i + 1],
+      arrays_cube.position[i + 2],
+    ];
+
+    var b = [
+      arrays_cube.position[i + 3],
+      arrays_cube.position[i + 4],
+      arrays_cube.position[i + 5],
+    ];
+    var c = [
+      arrays_cube.position[i + 6],
+      arrays_cube.position[i + 7],
+      arrays_cube.position[i + 8],
+    ];
+    // console.log("a");
+    // console.log(a);
+    // console.log("b");
+    // console.log(b);
+    // console.log("c");
+    // console.log(c);
+    var x = crossProduct(
+      [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
+      [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+    );
+    console.log(`cross product: ${x}`);
+    arrays_cube.normal[i] = x[0];
+    arrays_cube.normal[i + 1] = x[1];
+    arrays_cube.normal[i + 2] = x[2];
+
+    console.log(`normal: ${arrays_cube.normal}`);
+  }
+};
+
+const normalComIndice = () => {
+  for (let i = 0; i < arrays_cube.indices.length; i = i + 3) {
+    // cross(B-A, C-A)
+    var i0 = arrays_cube.indices[i];
+    var i1 = arrays_cube.indices[i + 1];
+    var i2 = arrays_cube.indices[i + 2];
+
+    var a = [
+      arrays_cube.position[i0],
+      arrays_cube.position[i1],
+      arrays_cube.position[i2],
+    ];
+
+    var b = [
+      arrays_cube.position[i0 + 1],
+      arrays_cube.position[i1 + 1],
+      arrays_cube.position[i2 + 1],
+    ];
+    var c = [
+      arrays_cube.position[i0 + 2],
+      arrays_cube.position[i1 + 2],
+      arrays_cube.position[i2 + 2],
+    ];
+    console.log(`a: ${a}`);
+    console.log(`b: ${b}`);
+    console.log(`c: ${c}`);
+    var x = crossProduct(
+      [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
+      [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+    );
+    console.log(`cross product: ${x}`);
+    console.log();
+    var temp = somaNormal(
+      [
+        arrays_cube.normal[i0],
+        arrays_cube.normal[i0 + 1],
+        arrays_cube.normal[i0 + 2],
+      ],
+      x
+    );
+    arrays_cube.normal[i0] = temp[0];
+    arrays_cube.normal[i0 + 1] = temp[1];
+    arrays_cube.normal[i0 + 2] = temp[2];
+    arrays_cube.normal[i1 * 3] = temp[0];
+    arrays_cube.normal[i1 * 3 + 1] = temp[1];
+    arrays_cube.normal[i1 * 3 + 2] = temp[2];
+    arrays_cube.normal[i2 * 3] = temp[0];
+    arrays_cube.normal[i2 * 3 + 1] = temp[1];
+    arrays_cube.normal[i2 * 3 + 2] = temp[2];
+    console.log(`normal: ${arrays_cube.normal}`);
+  }
+};
 
 const calculateBarycentric = (length) => {
   const n = length / 9;
@@ -94,6 +309,7 @@ const somaNormal = (v, n) => {
 };
 
 const calculaMeioDoTrianguloIndices = (arr) => {
+  console.log(arr)
   // arr contem os indices dos vertices q formam o triangulo que quero adicionar um vertice no meio
   const x =
     (arrays_cube.position[arr[0] * 3] +
@@ -130,23 +346,28 @@ var config = {
 
   addCaixa: function () {
     addCaixa();
+    gui.destroy();
+    loadGUI(gl);
   },
   triangulo: 0,
 
-  addPiramide:function(){
+  addTriangle:function(){
     countC++;
     var novoObjeto = {
       name: `piramid${countC}`,
-      translation: [countC + 1, 0, 0],
-      bufferInfo: piramidBufferInfo,
-      vao: piramidVAO
+      translation: [0, countC + 1, 0],
+      bufferInfo: triangleBufferInfo,
+      vao: triangleVAO
     }
+    listaObjetos.push(novoObjeto.name);
     objeto.children.push(novoObjeto);
 
     objectsToDraw = [];
     objects = [];
     nodeInfosByName = {};
     scene = makeNode(objeto);
+    gui.destroy();
+    loadGUI(gl);
     console.log(objeto)
   },
   criarVertice: function () {
@@ -198,23 +419,15 @@ var config = {
     //drawScene();
   },
   //time: 0.0,
+  scalex: 1.0,
+  scaley: 1.0,
+  scalez: 1.0,
   target: 3.5,
   vx: 0,
   vy: 0,
   vz: 0,
+  escolheObjeto: "cubo1",
   vertice: 0,
-  moverVertice: function () {
-    var n = config.vertice * 3;
-    arrays_cube.position[n] = config.vx;
-    arrays_cube.position[n + 1] = config.vy;
-    arrays_cube.position[n + 2] = config.vz;
-    cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
-
-    objectsToDraw = [];
-    objects = [];
-    nodeInfosByName = {};
-    scene = makeNode(objeto);
-  },
   camera_1: false,
   camera_2: false,
   camera_3: false,
@@ -236,7 +449,7 @@ const moveVertice = function () {
 var folder_vertice;
 var folder_camera;
 var folder_matrix;
-var folder_textura;
+var folder_objeto;
 
 const loadGUI = () => {
   gui = new dat.GUI();
@@ -244,7 +457,7 @@ const loadGUI = () => {
   folder_vertice = gui.addFolder("Manipular vertices");
   folder_camera = gui.addFolder("Manipular cameras");
   folder_matrix = gui.addFolder("Manipular matrizes");
-  folder_textura = gui.addFolder("Manipula objetos")
+  folder_objeto = gui.addFolder("Manipula objetos")
   folder_vertice.open();
   folder_matrix
     .add(config, "rotate", 0, 360, 0.5)
@@ -262,22 +475,33 @@ const loadGUI = () => {
   folder_matrix.add(config, "spin_x", -1000, 1000, 2);
   folder_matrix.add(config, "spin_y", -1000, 1000, 2);
 
-  gui.add(config, "addCaixa");
+  folder_matrix.add(config, "scalex", -10, 10, 0.1);
+  folder_matrix.add(config, "scaley", -10, 10, 0.1);
+  folder_matrix.add(config, "scalez", -10, 10, 0.1);
+
+  
   folder_camera.add(config, "camera_x", -200, 200, 1);
   folder_camera.add(config, "camera_y", -200, 200, 1);
   folder_camera.add(config, "camera_z", -200, 200, 1);
 
   folder_vertice.add(config, "triangulo", 0, 20, 1);
   folder_vertice.add(config, "criarVertice");
-  folder_textura.add(config, "addPiramide");
-  // gui
-  //   .add(config, "time", 0, teste)
-  //   .listen()
-  //   .onChange(function () {
-  //     //config.rotate = config.time + 1;
+  folder_objeto.add(config, "addTriangle");
+  folder_objeto.add(config, "addCaixa");
 
-  //     gui.updateDisplay();
-  //   });
+  folder_objeto.add(config, "escolheObjeto", listaObjetos).onChange(function(value){
+    config.x = nodeInfosByName[value].trs.translation[0]
+    config.y = nodeInfosByName[value].trs.translation[1]
+    config.z = nodeInfosByName[value].trs.translation[2]
+    config.scalex = nodeInfosByName[value].trs.scale[0]
+    config.scaley = nodeInfosByName[value].trs.scale[1]
+    config.scalez = nodeInfosByName[value].trs.scale[2]
+    config.spinx = nodeInfosByName[value].trs.rotation[0]
+    config.spiny = nodeInfosByName[value].trs.rotation[1]
+    config.spinz = nodeInfosByName[value].trs.rotation[2]
+    
+  });
+
   folder_camera.add(config, "target", -5, 5, 0.01);
   folder_vertice.add(config, "vertice").onChange(function () {
     const temp = arrays_cube.position.slice(
@@ -391,13 +615,15 @@ Node.prototype.updateWorldMatrix = function (matrix) {
 
 var uniformes;
 let oldTime = 0;
+var id = 0;
 var texturas;
 var cubeVAO;
-var piramidVAO;
+var triangleVAO;
 var imagem;
 var tex;
 var cubeBufferInfo;
-var piramidBufferInfo;
+var triangleBufferInfo;
+var listaObjetos = [];
 var objectsToDraw = [];
 var objects = [];
 var nodeInfosByName = {};
@@ -408,7 +634,7 @@ var countC = 0;
 var programInfo;
 var wireframe = false;
 var arrays_cube;
-var arrays_pyramid;
+var arrays_triangle;
 var gl;
 var aspect;
 var projectionMatrix;
@@ -432,6 +658,7 @@ function addCaixa(){
       bufferInfo: cubeBufferInfo,
       vao: cubeVAO
     }
+    listaObjetos.push(novoObjeto.name);
     objeto.children.push(novoObjeto);
 
     objectsToDraw = [];
@@ -483,13 +710,12 @@ function main() {
     return;
   }
 
-  loadGUI(gl);
 
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
-  arrays_pyramid = {
+  arrays_triangle = {
     position: new Float32Array([
       -1,0,0,      1,0,0,      0,1,0
     ]),
@@ -547,14 +773,19 @@ function main() {
     arrays_cube.position.length
   );
 
-  piramidBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_pyramid);
+  arrays_cube.normal = calculateNormal(
+    arrays_cube.position,
+    arrays_cube.indices
+  );
+
+  triangleBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_triangle);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
   // setup GLSL program
 
   programInfo = twgl.createProgramInfo(gl, [vs_texture, fs_texture]);
 
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
-  piramidVAO = twgl.createVAOFromBufferInfo(gl, programInfo, piramidBufferInfo);
+  triangleVAO = twgl.createVAOFromBufferInfo(gl, programInfo, triangleBufferInfo);
   
   texturas =["goku.jpg","gokussj.jpg", "gokussj2.jpg", "gokussj3.jpg", "gokussj4.jpg", "gokussjgod.jpg", "gokussjblue.jpg"]
 
@@ -590,6 +821,7 @@ function main() {
   scene = makeNode(objeto);
   cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
   addCaixa();
+  loadGUI(gl);
   console.log(objects)
   requestAnimationFrame(drawScene);
 
@@ -670,10 +902,11 @@ function drawScene(time) {
   c = time * speed;
 
   adjust = degToRad(time * config.spin_x);
-  nodeInfosByName["cubo1"].trs.rotation[0] = adjust;
+  nodeInfosByName[config.escolheObjeto].trs.rotation[0] = adjust;
   adjust = degToRad(time * config.spin_y);
-  nodeInfosByName["cubo1"].trs.rotation[1] = adjust;
-  nodeInfosByName["cubo1"].trs.translation = [config.x, config.y, config.z];
+  nodeInfosByName[config.escolheObjeto].trs.rotation[1] = adjust;
+  nodeInfosByName[config.escolheObjeto].trs.translation = [config.x, config.y, config.z];
+  nodeInfosByName[config.escolheObjeto].trs.scale = [config.scalex, config.scaley, config.scalez];
 
   //nodeInfosByName["origin"].trs.rotation[0] = degToRad(config.rotate);
   // Update all world matrices in the scene graph
@@ -690,7 +923,8 @@ function drawScene(time) {
   // ------ Draw the objects --------
   gl.useProgram(programInfo.program);
   twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
-  twgl.setUniforms(programInfo, uniformes)
+  twgl.setUniforms(programInfo, uniformes);
+  twgl.drawBufferInfo(gl, cubeBufferInfo);
   twgl.drawObjectList(gl, objectsToDraw);
 
   requestAnimationFrame(drawScene);
