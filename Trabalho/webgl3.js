@@ -129,24 +129,25 @@ var config = {
   camera_z: 10,
 
   addCaixa: function () {
-    countC++;
+    addCaixa();
+  },
+  triangulo: 0,
 
-    objeto.children.push({
-      name: `cubo${countC}`,
+  addPiramide:function(){
+    countC++;
+    var novoObjeto = {
+      name: `piramid${countC}`,
       translation: [countC + 1, 0, 0],
-    });
+      bufferInfo: piramidBufferInfo,
+      vao: piramidVAO
+    }
+    objeto.children.push(novoObjeto);
 
     objectsToDraw = [];
     objects = [];
     nodeInfosByName = {};
     scene = makeNode(objeto);
-  },
-  triangulo: 0,
-
-  addTextura:function(){
-    
-    uniforms.u_faceIndex[randInt(6)]= randInt(texturas.lenght);
-    
+    console.log(objeto)
   },
   criarVertice: function () {
     
@@ -243,13 +244,13 @@ const loadGUI = () => {
   folder_vertice = gui.addFolder("Manipular vertices");
   folder_camera = gui.addFolder("Manipular cameras");
   folder_matrix = gui.addFolder("Manipular matrizes");
-  folder_textura = gui.addFolder("Manipula textura")
+  folder_textura = gui.addFolder("Manipula objetos")
   folder_vertice.open();
   folder_matrix
     .add(config, "rotate", 0, 360, 0.5)
     .listen()
     .onChange(function () {
-      nodeInfosByName["cubo0"].trs.rotation[0] = degToRad(config.rotate);
+      nodeInfosByName["origin"].trs.rotation[0] = degToRad(config.rotate);
       // A ANIMACAO DE GIRAR SOBREPOE ESSA ALTERACAO TODA VEZ Q RENDERIZA
       // TEM Q USAR OU UM OU OUTRO
     });
@@ -268,7 +269,7 @@ const loadGUI = () => {
 
   folder_vertice.add(config, "triangulo", 0, 20, 1);
   folder_vertice.add(config, "criarVertice");
-  folder_textura.add(config, "addTextura");
+  folder_textura.add(config, "addPiramide");
   // gui
   //   .add(config, "time", 0, teste)
   //   .listen()
@@ -388,13 +389,15 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
-var uniforms;
+var uniformes;
 let oldTime = 0;
 var texturas;
-var VAO;
+var cubeVAO;
+var piramidVAO;
 var imagem;
 var tex;
 var cubeBufferInfo;
+var piramidBufferInfo;
 var objectsToDraw = [];
 var objects = [];
 var nodeInfosByName = {};
@@ -405,21 +408,37 @@ var countC = 0;
 var programInfo;
 var wireframe = false;
 var arrays_cube;
+var arrays_pyramid;
 var gl;
 var aspect;
 var projectionMatrix;
 var cameraMatrix;
 var viewMatrix;
-var viewProjectionMatrix;
 var adjust;
 var speed;
 var c;
 var fieldOfViewRadians;
-
 //CAMERA VARIABLES
 var cameraPosition;
 var target;
 var up;
+
+function addCaixa(){
+    countC++;
+    console.log(objeto)
+    var novoObjeto = {
+      name: `cubo${countC}`,
+      translation: [countC + 1, 0, 0],
+      bufferInfo: cubeBufferInfo,
+      vao: cubeVAO
+    }
+    objeto.children.push(novoObjeto);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+}
 
 function makeNode(nodeDescription) {
   var trs = new TRS();
@@ -430,35 +449,27 @@ function makeNode(nodeDescription) {
   };
   trs.translation = nodeDescription.translation || trs.translation;
   if (nodeDescription.draw !== false) {
-    if (wireframe) {
-      node.drawInfo = {
-        uniforms: {
-          u_matrix: [0, 0, 0, 1],
-        },
-        programInfo: programInfo,
-        bufferInfo: cubeBufferInfo,
-        vertexArray: VAO,
-      };
-    } else {
       node.drawInfo = {
         uniforms: {
           u_colorOffset: [0.2, 0.2, 0.7, 0],
           u_colorMult: [0.4, 0.1, 0.4, 1],
+          u_matrix: m4.identity(),
         },
         programInfo: programInfo,
-        bufferInfo: cubeBufferInfo,
-        vertexArray: VAO,
+        bufferInfo: nodeDescription.bufferInfo,
+        vertexArray: nodeDescription.vao,
       };
+      objectsToDraw.push(node.drawInfo);
+      objects.push(node);
     }
-    objectsToDraw.push(node.drawInfo);
-    objects.push(node);
+    
 
     makeNodes(nodeDescription.children).forEach(function (child) {
       child.setParent(node);
     });
     return node;
   }
-}
+
 
 function makeNodes(nodeDescriptions) {
   return nodeDescriptions ? nodeDescriptions.map(makeNode) : [];
@@ -478,6 +489,15 @@ function main() {
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
   //cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
+  arrays_pyramid = {
+    position: new Float32Array([
+      -1,0,0,      1,0,0,      0,1,0
+    ]),
+    indices: new Uint16Array([
+      0,1,2
+    ]),
+  };
+
   arrays_cube = {
     // vertex positions for a cube
     position: new Float32Array([
@@ -526,41 +546,15 @@ function main() {
   arrays_cube.barycentric = calculateBarycentric(
     arrays_cube.position.length
   );
-  for (
-    let index = 0;
-    index < arrays_cube.indices.length;
-    index = index + 3
-  ) {
-    // cross(B-A, C-A)
-    var a = arrays_cube.position[arrays_cube.indices[index]];
-    var b = arrays_cube.position[arrays_cube.indices[index + 1]];
-    var c = arrays_cube.position[arrays_cube.indices[index + 2]];
-    var x = crossProduct(
-      [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
-      [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
-    );
 
-    arrays_cube.normal[arrays_cube.indices[index]] = somaNormal(
-      arrays_cube.normal[arrays_cube.indices[index]],
-      x
-    );
-    arrays_cube.normal[arrays_cube.indices[index + 1]] = somaNormal(
-      arrays_cube.normal[arrays_cube.indices[index + 1]],
-      x
-    );
-    arrays_cube.normal[arrays_cube.indices[index + 2]] = somaNormal(
-      arrays_cube.normal[arrays_cube.indices[index + 2]],
-      x
-    );
-  }
-
- 
+  piramidBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_pyramid);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
   // setup GLSL program
 
   programInfo = twgl.createProgramInfo(gl, [vs_texture, fs_texture]);
 
-  VAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
+  cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
+  piramidVAO = twgl.createVAOFromBufferInfo(gl, programInfo, piramidBufferInfo);
   
   texturas =["goku.jpg","gokussj.jpg", "gokussj2.jpg", "gokussj3.jpg", "gokussj4.jpg", "gokussjgod.jpg", "gokussjblue.jpg"]
 
@@ -570,7 +564,7 @@ function main() {
   });
   console.log(tex)
 
-  uniforms = {
+  uniformes = {
     u_diffuse: tex,
     u_faceIndex:[0, 1, 2, 3, 4, 5],
   }
@@ -587,13 +581,16 @@ function main() {
 
   // Let's make all the nodes
   objeto = {
-    name: "cubo0",
+    name: "origin",
+    draw: false,
     translation: [0, 0, 0],
     children: [],
   };
   
   scene = makeNode(objeto);
   cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
+  addCaixa();
+  console.log(objects)
   requestAnimationFrame(drawScene);
 
   // Draw the scene.
@@ -608,7 +605,7 @@ function drawScene(time) {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
   if ((oldTime | 0) < (time | 0)) {
-    uniforms.u_faceIndex[randInt(6)] = randInt(texturas.length);
+    uniformes.u_faceIndex[randInt(6)] = randInt(texturas.length);
   }
   oldTime = time;
 
@@ -673,12 +670,12 @@ function drawScene(time) {
   c = time * speed;
 
   adjust = degToRad(time * config.spin_x);
-  nodeInfosByName["cubo0"].trs.rotation[0] = adjust;
+  nodeInfosByName["cubo1"].trs.rotation[0] = adjust;
   adjust = degToRad(time * config.spin_y);
-  nodeInfosByName["cubo0"].trs.rotation[1] = adjust;
-  nodeInfosByName["cubo0"].trs.translation = [config.x, config.y, config.z];
+  nodeInfosByName["cubo1"].trs.rotation[1] = adjust;
+  nodeInfosByName["cubo1"].trs.translation = [config.x, config.y, config.z];
 
-  //nodeInfosByName["cubo0"].trs.rotation[0] = degToRad(config.rotate);
+  //nodeInfosByName["origin"].trs.rotation[0] = degToRad(config.rotate);
   // Update all world matrices in the scene graph
   scene.updateWorldMatrix();
 
@@ -693,7 +690,7 @@ function drawScene(time) {
   // ------ Draw the objects --------
   gl.useProgram(programInfo.program);
   twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
-  twgl.setUniforms(programInfo, uniforms)
+  twgl.setUniforms(programInfo, uniformes)
   twgl.drawObjectList(gl, objectsToDraw);
 
   requestAnimationFrame(drawScene);
