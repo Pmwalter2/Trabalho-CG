@@ -444,24 +444,15 @@ var config = {
   triangulo: 0,
 
   addTriangle:function(){
-    countC++;
-    var novoObjeto = {
-      name: `piramid${countC}`,
-      translation: [0, countC + 1, 0],
-      bufferInfo: triangleBufferInfo,
-      vao: triangleVAO
-    }
-    console.log("triangulo")
-    listaObjetos.push(novoObjeto.name);
-    objeto.children.push(novoObjeto);
-
-    objectsToDraw = [];
-    objects = [];
-    nodeInfosByName = {};
-    scene = makeNode(objeto);
+    addTriangle();
     gui.destroy();
     loadGUI(gl);
     
+  },
+  addPyramid: function(){
+    addPyramid();
+    gui.destroy();
+    loadGUI(gl);
   },
   criarVertice: function () {
     
@@ -581,6 +572,7 @@ const loadGUI = () => {
   folder_vertice.add(config, "criarVertice");
   folder_objeto.add(config, "addTriangle");
   folder_objeto.add(config, "addCaixa");
+  folder_objeto.add(config, "addPyramid");
 
   folder_objeto.add(config, "escolheObjeto", listaObjetos).onChange(function(value){
     config.x = nodeInfosByName[value].trs.translation[0]
@@ -596,37 +588,37 @@ const loadGUI = () => {
   });
 
   folder_luz.add(config, "luzIndex", listOfLights).onChange(function () {
-    config.luzx = arrLuz[config.luzIndex].position.x;
-    config.luzy = arrLuz[config.luzIndex].position.y;
-    config.luzz = arrLuz[config.luzIndex].position.z;
-    palette.corLuz = arrLuz[config.luzIndex].color;
-    palette.corSpec = arrLuz[config.luzIndex].spec;
+    config.luzx = arrayLuz[config.luzIndex].position.x;
+    config.luzy = arrayLuz[config.luzIndex].position.y;
+    config.luzz = arrayLuz[config.luzIndex].position.z;
+    palette.corLuz = arrayLuz[config.luzIndex].color;
+    palette.corSpec = arrayLuz[config.luzIndex].spec;
 
     gui.updateDisplay();
   });
   folder_luz.add(config, "luzx", -20, 20, 0.01).onChange(function () {
-    arrLuz[config.luzIndex].position.x = config.luzx;
-    arrLuz[config.luzIndex].position.y = config.luzy;
-    arrLuz[config.luzIndex].position.z = config.luzz;
+    arrayLuz[config.luzIndex].position.x = config.luzx;
+    arrayLuz[config.luzIndex].position.y = config.luzy;
+    arrayLuz[config.luzIndex].position.z = config.luzz;
   });
   folder_luz.add(config, "luzy", -20, 20, 0.01).onChange(function () {
-    arrLuz[config.luzIndex].position.x = config.luzx;
-    arrLuz[config.luzIndex].position.y = config.luzy;
-    arrLuz[config.luzIndex].position.z = config.luzz;
+    arrayLuz[config.luzIndex].position.x = config.luzx;
+    arrayLuz[config.luzIndex].position.y = config.luzy;
+    arrayLuz[config.luzIndex].position.z = config.luzz;
   });
   folder_luz.add(config, "luzz", -20, 200, 0.01).onChange(function () {
-    arrLuz[config.luzIndex].position.x = config.luzx;
-    arrLuz[config.luzIndex].position.y = config.luzy;
-    arrLuz[config.luzIndex].position.z = config.luzz;
+    arrayLuz[config.luzIndex].position.x = config.luzx;
+    arrayLuz[config.luzIndex].position.y = config.luzy;
+    arrayLuz[config.luzIndex].position.z = config.luzz;
   });
   folder_luz.add(config, "shininess", 0, 3000, 0.1);
 
   folder_luz.addColor(palette, "corLuz").onChange(function () {
-    arrLuz[config.luzIndex].color = palette.corLuz;
+    arrayLuz[config.luzIndex].color = palette.corLuz;
   });
   folder_luz.addColor(palette, "corCubo");
   folder_luz.addColor(palette, "corSpec").onChange(function () {
-    arrLuz[config.luzIndex].spec = palette.corSpec;
+    arrayLuz[config.luzIndex].spec = palette.corSpec;
   });
   folder_camera.add(config, "target", -5, 5, 0.01);
   folder_vertice.add(config, "vertice").onChange(function () {
@@ -739,6 +731,154 @@ Node.prototype.updateWorldMatrix = function (matrix) {
   });
 };
 
+function addPyramid(){
+  inMemory();
+  numberOfObjects++;
+  countC++;
+  var novoObjeto = {
+    name: `pyramid${countC}`,
+    translation: [countC * 2, 0, 0],
+    bufferInfo: pyramidBufferInfo,
+    vao: pyramidVAO,
+  }
+  listaObjetos.push(novoObjeto.name);
+  objeto.children.push(novoObjeto);
+
+  objectsToDraw = [];
+  objects = [];
+  nodeInfosByName = {};
+  scene = makeNode(objeto);
+  addInMemoryObject();
+  outMemory();
+}
+
+function addCaixa(){
+  inMemory();
+  numberOfObjects++;
+  countC++;
+  var novoObjeto = {
+    name: `cubo${countC}`,
+    translation: [countC * 2, 0, 0],
+    bufferInfo: cubeBufferInfo,
+    vao: cubeVAO
+  }
+  
+  console.log(novoObjeto.name);
+  listaObjetos.push(novoObjeto.name);
+  objeto.children.push(novoObjeto);
+
+  objectsToDraw = [];
+  objects = [];
+  nodeInfosByName = {};
+  scene = makeNode(objeto);
+  addInMemoryObject();
+  outMemory();
+}
+
+function addTriangle(){
+  inMemory();
+    numberOfObjects++;
+    countC++;
+    var novoObjeto = {
+      name: `triangle${countC}`,
+      translation: [0, countC + 1, 0],
+      bufferInfo: triangleBufferInfo,
+      vao: triangleVAO
+    }
+    console.log(countC)
+    console.log(novoObjeto);
+    listaObjetos.push(novoObjeto.name);
+    objeto.children.push(novoObjeto);
+
+    objectsToDraw = [];
+    objects = [];
+    nodeInfosByName = {};
+    scene = makeNode(objeto);
+    addInMemoryObject();
+    outMemory();
+}
+
+function makeNode(nodeDescription) {
+var trs = new TRS();
+var node = new Node(trs);
+nodeInfosByName[nodeDescription.name] = {
+  trs: trs,
+  node: node,
+};
+trs.translation = nodeDescription.translation || trs.translation;
+if (nodeDescription.draw !== false) {
+    node.drawInfo = {
+      uniforms: {
+        u_colorOffset: [0.2, 0.2, 0.7, 0],
+        u_colorMult: [0.4, 0.1, 0.4, 1],
+        u_matrix: m4.identity(),
+      },
+      programInfo: programInfo,
+      bufferInfo: nodeDescription.bufferInfo,
+      vertexArray: nodeDescription.vao,
+    };
+    objectsToDraw.push(node.drawInfo);
+    objects.push(node);
+  }
+  
+
+  makeNodes(nodeDescription.children).forEach(function (child) {
+    child.setParent(node);
+  });
+  return node;
+}
+
+
+function makeNodes(nodeDescriptions) {
+return nodeDescriptions ? nodeDescriptions.map(makeNode) : [];
+}
+
+function inMemory(){
+  var ii;
+  if(numberOfObjects > 0){
+    for(ii=1;ii<=numberOfObjects;ii++){
+      inMemoryObjects[ii-1].x=nodeInfosByName[ii].trs.translation[0];
+      inMemoryObjects[ii-1].y=nodeInfosByName[ii].trs.translation[1];
+      inMemoryObjects[ii-1].z=nodeInfosByName[ii].trs.translation[2];
+      inMemoryObjects[ii-1].spin_x=nodeInfosByName[ii].trs.rotation[0];
+      inMemoryObjects[ii-1].spin_y=nodeInfosByName[ii].trs.rotation[1]
+      inMemoryObjects[ii-1].scalex=nodeInfosByName[ii].trs.scale[0];
+      inMemoryObjects[ii-1].scaley=nodeInfosByName[ii].trs.scale[1];
+      inMemoryObjects[ii-1].scalez=nodeInfosByName[ii].trs.scale[2];
+    }
+  }
+ 
+}
+
+function outMemory(){
+  var ii;
+  if(numberOfObjects > 0)
+  for(ii=1;ii<=numberOfObjects;ii++){
+    nodeInfosByName[ii].trs.translation[0]=inMemoryObjects[ii-1].x;
+    nodeInfosByName[ii].trs.translation[1]=inMemoryObjects[ii-1].y;
+    nodeInfosByName[ii].trs.translation[2]=inMemoryObjects[ii-1].z;
+    nodeInfosByName[ii].trs.rotation[0]=inMemoryObjects[ii-1].spin_x;
+    nodeInfosByName[ii].trs.rotation[1]=inMemoryObjects[ii-1].spin_y;
+    nodeInfosByName[ii].trs.scale[0]=inMemoryObjects[ii-1].scalex;
+    nodeInfosByName[ii].trs.scale[1]=inMemoryObjects[ii-1].scaley;
+    nodeInfosByName[ii].trs.scale[2]=inMemoryObjects[ii-1].scalez;
+  }
+}
+
+function addInMemoryObject(){
+  let anotherNewObj = {
+    x: 0,
+    y: 0,
+    z: 0,
+    spin_x: 0,
+    spin_y: 0,
+    scalex: 1,
+    scaley: 1,
+    scalez: 1
+  }
+  console.log(anotherNewObj)
+  inMemoryObjects.push(anotherNewObj);
+}
 
 const convertToZeroOne = (old_value, old_min, old_max) => {
   return (old_value - old_min) / (old_max - old_min);
@@ -760,20 +900,24 @@ class Luz {
 }
 
 var listOfLights = [0, 1, 2];
-var arrLuz = [
+var arrayLuz = [
   new Luz([4, 0, 0], [255, 255, 255], [255, 255, 255], 300),
   new Luz([-4, 0, 0], [255, 255, 255], [255, 255, 255], 300),
   new Luz([5, 4, 8], [255, 255, 255], [255, 255, 255], 300),
 ];
+var inMemoryObjects =[];
+var numberOfObjects;
 var uniformes;
 let oldTime = 0;
 var texturas;
 var cubeVAO;
 var triangleVAO;
+var pyramidVAO;
 var imagem;
 var tex;
 var cubeBufferInfo;
 var triangleBufferInfo;
+var pyramidBufferInfo;
 var listaObjetos = [];
 var objectsToDraw = [];
 var objects = [];
@@ -784,6 +928,7 @@ var countC = 0;
 var programInfo;
 var arrays_cube;
 var arrays_triangle;
+var arrays_pyramid;
 var gl;
 var aspect;
 var projectionMatrix;
@@ -803,58 +948,7 @@ var cameraPosition;
 var target;
 var up;
 
-function addCaixa(){
-    countC++;
-    var novoObjeto = {
-      name: `cubo${countC}`,
-      translation: [countC * 2, 0, 0],
-      bufferInfo: cubeBufferInfo,
-      vao: cubeVAO
-    }
-    console.log("caixa")
-    listaObjetos.push(novoObjeto.name);
-    objeto.children.push(novoObjeto);
 
-    objectsToDraw = [];
-    objects = [];
-    nodeInfosByName = {};
-    scene = makeNode(objeto);
-}
-
-function makeNode(nodeDescription) {
-  var trs = new TRS();
-  var node = new Node(trs);
-  nodeInfosByName[nodeDescription.name] = {
-    trs: trs,
-    node: node,
-  };
-  trs.translation = nodeDescription.translation || trs.translation;
-  if (nodeDescription.draw !== false) {
-      node.drawInfo = {
-        uniforms: {
-          u_colorOffset: [0.2, 0.2, 0.7, 0],
-          u_colorMult: [0.4, 0.1, 0.4, 1],
-          u_matrix: m4.identity(),
-        },
-        programInfo: programInfo,
-        bufferInfo: nodeDescription.bufferInfo,
-        vertexArray: nodeDescription.vao,
-      };
-      objectsToDraw.push(node.drawInfo);
-      objects.push(node);
-    }
-    
-
-    makeNodes(nodeDescription.children).forEach(function (child) {
-      child.setParent(node);
-    });
-    return node;
-  }
-
-
-function makeNodes(nodeDescriptions) {
-  return nodeDescriptions ? nodeDescriptions.map(makeNode) : [];
-}
 function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
@@ -877,6 +971,36 @@ function main() {
       0,1,2
     ]),
   };
+
+  arrays_pyramid = {
+    normal: new Float32Array([
+      0, 0, 1,
+  
+      1, 0, 0,
+  
+      0, 0, -1,
+  
+      -1, 0, 0,
+  
+      0, -1, 0,
+  
+      //-1, 1, -1,
+    ]),
+    indices: new Uint16Array([
+      //0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 8, 4, 1, 8, 5, 2,
+      0, 1, 2,
+  
+      0, 3, 2,
+  
+      0, 4, 3,
+  
+      0, 4, 1,
+  
+      4, 1, 2,
+  
+      3, 4, 2,
+    ]),
+  }
 
   arrays_cube = {
     // vertex positions for a cube
@@ -934,13 +1058,15 @@ function main() {
 
   triangleBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_triangle);
   cubeBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_cube);
+  pyramidBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays_pyramid);
   // setup GLSL program
 
   programInfo = twgl.createProgramInfo(gl, [vs_texture, fs_texture]);
 
   cubeVAO = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
   triangleVAO = twgl.createVAOFromBufferInfo(gl, programInfo, triangleBufferInfo);
-  
+  pyramidVAO = twgl.createVAOFromBufferInfo(gl, programInfo, pyramidBufferInfo);
+
   texturas =["goku.jpg","gokussj.jpg", "gokussj2.jpg", "gokussj3.jpg", "gokussj4.jpg", "gokussjgod.jpg", "gokussjblue.jpg"]
 
   tex = twgl.createTexture(gl, {
@@ -975,35 +1101,35 @@ function main() {
   scene = makeNode(objeto);
   objects.forEach(function (object) {
     object.drawInfo.uniforms.u_lightWorldPosition0 = [
-      arrLuz[0].position.x,
-      arrLuz[0].position.y,
-      arrLuz[0].position.z,
+      arrayLuz[0].position.x,
+      arrayLuz[0].position.y,
+      arrayLuz[0].position.z,
     ];
     object.drawInfo.uniforms.u_lightWorldPosition1 = [
-      arrLuz[1].position.x,
-      arrLuz[1].position.y,
-      arrLuz[1].position.z,
+      arrayLuz[1].position.x,
+      arrayLuz[1].position.y,
+      arrayLuz[1].position.z,
     ];
     object.drawInfo.uniforms.u_lightWorldPosition2 = [
-      arrLuz[2].position.x,
-      arrLuz[2].position.y,
-      arrLuz[2].position.z,
+      arrayLuz[2].position.x,
+      arrayLuz[2].position.y,
+      arrayLuz[2].position.z,
     ];
 
     object.drawInfo.uniforms.u_lightColor0 = [
-      convertToZeroOne(arrLuz[0].color[0], 0, 255),
-      convertToZeroOne(arrLuz[0].color[1], 0, 255),
-      convertToZeroOne(arrLuz[0].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_lightColor1 = [
-      convertToZeroOne(arrLuz[1].color[0], 0, 255),
-      convertToZeroOne(arrLuz[1].color[1], 0, 255),
-      convertToZeroOne(arrLuz[1].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_lightColor2 = [
-      convertToZeroOne(arrLuz[2].color[0], 0, 255),
-      convertToZeroOne(arrLuz[2].color[1], 0, 255),
-      convertToZeroOne(arrLuz[2].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[2], 0, 255),
     ];
 
     object.drawInfo.uniforms.u_color = [
@@ -1014,19 +1140,19 @@ function main() {
     ];
 
     object.drawInfo.uniforms.u_specularColor0 = [
-      convertToZeroOne(arrLuz[0].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[0].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[0].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_specularColor1 = [
-      convertToZeroOne(arrLuz[1].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[1].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[1].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_specularColor2 = [
-      convertToZeroOne(arrLuz[2].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[2].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[2].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[2], 0, 255),
     ];
   });
   cameraPosition = [config.camera_x, config.camera_y, config.camera_z];
@@ -1129,35 +1255,35 @@ function drawScene(time) {
       object.worldMatrix
     );
     object.drawInfo.uniforms.u_lightWorldPosition0 = [
-      arrLuz[0].position.x,
-      arrLuz[0].position.y,
-      arrLuz[0].position.z,
+      arrayLuz[0].position.x,
+      arrayLuz[0].position.y,
+      arrayLuz[0].position.z,
     ];
     object.drawInfo.uniforms.u_lightWorldPosition1 = [
-      arrLuz[1].position.x,
-      arrLuz[1].position.y,
-      arrLuz[1].position.z,
+      arrayLuz[1].position.x,
+      arrayLuz[1].position.y,
+      arrayLuz[1].position.z,
     ];
     object.drawInfo.uniforms.u_lightWorldPosition2 = [
-      arrLuz[2].position.x,
-      arrLuz[2].position.y,
-      arrLuz[2].position.z,
+      arrayLuz[2].position.x,
+      arrayLuz[2].position.y,
+      arrayLuz[2].position.z,
     ];
 
     object.drawInfo.uniforms.u_lightColor0 = [
-      convertToZeroOne(arrLuz[0].color[0], 0, 255),
-      convertToZeroOne(arrLuz[0].color[1], 0, 255),
-      convertToZeroOne(arrLuz[0].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[0].color[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_lightColor1 = [
-      convertToZeroOne(arrLuz[1].color[0], 0, 255),
-      convertToZeroOne(arrLuz[1].color[1], 0, 255),
-      convertToZeroOne(arrLuz[1].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[1].color[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_lightColor2 = [
-      convertToZeroOne(arrLuz[2].color[0], 0, 255),
-      convertToZeroOne(arrLuz[2].color[1], 0, 255),
-      convertToZeroOne(arrLuz[2].color[2], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[0], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[1], 0, 255),
+      convertToZeroOne(arrayLuz[2].color[2], 0, 255),
     ];
 
     object.drawInfo.uniforms.u_color = [
@@ -1168,19 +1294,19 @@ function drawScene(time) {
     ];
     
     object.drawInfo.uniforms.u_specularColor0 = [
-      convertToZeroOne(arrLuz[0].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[0].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[0].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[0].spec[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_specularColor1 = [
-      convertToZeroOne(arrLuz[1].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[1].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[1].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[1].spec[2], 0, 255),
     ];
     object.drawInfo.uniforms.u_specularColor2 = [
-      convertToZeroOne(arrLuz[2].spec[0], 0, 255),
-      convertToZeroOne(arrLuz[2].spec[1], 0, 255),
-      convertToZeroOne(arrLuz[2].spec[2], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[0], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[1], 0, 255),
+      convertToZeroOne(arrayLuz[2].spec[2], 0, 255),
     ];
 
     object.drawInfo.uniforms.u_color = [
@@ -1202,9 +1328,7 @@ function drawScene(time) {
 
   // ------ Draw the objects --------
   gl.useProgram(programInfo.program);
-  twgl.setBuffersAndAttributes(gl, programInfo, cubeBufferInfo);
   twgl.setUniforms(programInfo, uniformes);
-  twgl.drawBufferInfo(gl, cubeBufferInfo);
   twgl.drawObjectList(gl, objectsToDraw);
 
   requestAnimationFrame(drawScene);
